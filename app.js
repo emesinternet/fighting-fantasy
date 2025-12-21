@@ -238,35 +238,6 @@
     }
   };
 
-  const animationTesterSelect = document.getElementById('animationScenario');
-
-  // Human-friendly labels keep the animation tester dropdown aligned with how each image is used in-game.
-  const actionVisualLabels = {
-    newGame: 'New game setup',
-    eatMeal: 'Eat Meal recovery',
-    drinkPotion: 'Use Potion',
-    escape: 'Escape Combat',
-    blockEnemy: 'Player blocks enemy hit',
-    enemyHitYou: 'Player takes a hit',
-    playerHitEnemy: 'Player hits enemy',
-    playerMissEnemy: 'Player misses enemy',
-    defeatEnemy: 'Enemy defeated',
-    loseCombat: 'Combat defeat (0 Stamina)',
-    lose: 'Game Over (non-combat)',
-    win: 'Player victory',
-    lucky: 'Lucky roll',
-    unlucky: 'Unlucky roll'
-  };
-
-  if (animationTesterSelect) {
-    Object.entries(actionVisualLabels).forEach(([key, label]) => {
-      const option = document.createElement('option');
-      option.value = key;
-      option.textContent = label;
-      animationTesterSelect.appendChild(option);
-    });
-  }
-
   const showActionVisual = (key, overrides = {}) => {
     const visual = actionVisuals[key];
     if (!visual) {
@@ -947,14 +918,6 @@
   document.getElementById('newGame').addEventListener('click', newGame);
   document.getElementById('gameOver').addEventListener('click', playGameOverVisual);
   document.getElementById('usePotion').addEventListener('click', applyPotion);
-  document.getElementById('testAnimation').addEventListener('click', () => {
-    const scenario = animationTesterSelect ? animationTesterSelect.value : 'win';
-    if (!scenario || !actionVisuals[scenario]) {
-      alert('Select an action art scenario to preview.');
-      return;
-    }
-    showActionVisual(scenario);
-  });
 
   document.getElementById('addEnemy').addEventListener('click', () => addEnemy());
   bindPlayerInputs();

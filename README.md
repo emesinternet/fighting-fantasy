@@ -14,7 +14,6 @@ New games start with a single modal that lets you re-roll each stat before locki
 ## Action art and animation
 - Each key action triggers matching art from `img/`: New Game, Eat Meal, Use Potion, Escape Combat, combat hits/blocks/defeats, and Lucky/Unlucky rolls all display short sublines alongside their illustrations. The New Game animation fires right after you pick your potion so the art marks the true start of the adventure.
 - When you lose an exchange and test Luck, the successful check shows "Lucky block, restore 1 stamina" while a failed check shows "Unlocky block, lose 1 stamina." Combat defeat art with "You have been killed. Game Over." only appears when Stamina hits 0, and a separate Game Over button in the header triggers the non-combat defeat image.
-- A scenario dropdown under the Adventure Log lists every action art use; selecting one and clicking "Play Animation" previews only that scenario.
 - The overlay darkens and softly blurs the full viewport, then fades/slides the centered image in before the subline text, holds a little longer, and fades away. Clicking anywhere on the overlay dismisses it immediately if you want to skip the rest of the timing.
 
 ## Development notes

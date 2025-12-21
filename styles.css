@@ -555,8 +555,3 @@ blockquote {
 .animation-text.animate-out {
   animation: fade-down-soft 320ms ease forwards;
 }
-
-.test-row {
-  display: flex;
-  justify-content: flex-end;
-}
