@@ -9,6 +9,3 @@ Single-page web sheet for Fighting Fantasy gamebooks. Track player stats, manage
 ## Logs
 - **Adventure Log:** Scrollable list sized for five entries with visible timestamps to keep recent actions easy to follow.
 - **Decision Log:** Use the **+** button beside the header to record a page number and decision; timestamps remain in the save file for reference but stay hidden in the UI when browsing entries.
-
-## Combat and Luck
-- When you hit an enemy, the hit animation plays first, then a modal asks whether to spend Luck for extra damage.
