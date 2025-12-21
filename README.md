@@ -14,6 +14,9 @@ Single-page web sheet for Fighting Fantasy gamebooks. Track player stats, manage
 - **Test Your Luck:** Opens a dialog to spend Luck on general tests, softening incoming damage, or amplifying your hits.
 - **Roll:** Sits beside Test Your Luck and opens a modal to roll 1D6, 1D4, 1D2, 2D6, or a percent die (1-100) and log the result.
 
+## Interface
+- Dropdown menus and other form controls stay styled for the dark theme, keeping expanded options readable.
+
 ## Enemies
 - Add monsters when you encounter them; the list starts empty and shows a prompt until you create one.
 - Enemy names remain fixed to their creation order so combat log references do not change when other foes fall.
