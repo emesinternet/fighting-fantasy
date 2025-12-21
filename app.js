@@ -271,6 +271,8 @@
   const createModal = (title, description) => {
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
+    overlay.setAttribute('aria-hidden', 'true');
+
     const modal = document.createElement('div');
     modal.className = 'modal';
 
@@ -286,8 +288,77 @@
 
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
+    overlay.setAttribute('aria-hidden', 'false');
 
-    return { overlay, modal, close: () => overlay.remove() };
+    // Keep a simple focus map that works across buttons, form controls, and intentional tabindex targets.
+    const focusableSelectors = [
+      'button',
+      '[href]',
+      'input',
+      'select',
+      'textarea',
+      '[tabindex]:not([tabindex="-1"])'
+    ];
+
+    const getFocusableElements = () => Array.from(
+      modal.querySelectorAll(focusableSelectors.join(','))
+    ).filter((el) => !el.hasAttribute('disabled') && el.tabIndex !== -1 && el.offsetParent !== null);
+
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+    const focusFirstInteractive = () => {
+      const focusable = getFocusableElements();
+      if (focusable.length > 0) {
+        focusable[0].focus();
+        return;
+      }
+      // Keep the modal itself keyboard reachable when it has no interactive children yet.
+      modal.tabIndex = -1;
+      modal.focus();
+    };
+
+    const trapFocus = (event) => {
+      if (event.key !== 'Tab') {
+        return;
+      }
+      const focusable = getFocusableElements();
+      if (focusable.length === 0) {
+        event.preventDefault();
+        modal.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    const close = () => {
+      overlay.setAttribute('aria-hidden', 'true');
+      overlay.removeEventListener('keydown', handleKeydown);
+      overlay.remove();
+      if (previouslyFocused && document.body.contains(previouslyFocused)) {
+        previouslyFocused.focus();
+      }
+    };
+
+    const handleKeydown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        close();
+      }
+      trapFocus(event);
+    };
+
+    overlay.addEventListener('keydown', handleKeydown);
+    focusFirstInteractive();
+
+    return { overlay, modal, close };
   };
 
   const syncPlayerInputs = () => {
