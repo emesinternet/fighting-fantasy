@@ -374,10 +374,14 @@ button:hover:enabled {
   background: #121212;
   padding: 16px;
   border-radius: 8px;
-  max-width: 820px;
+  max-width: 720px;
   width: 100%;
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
   border: 1px solid var(--panel-border);
+}
+
+.modal-compact {
+  max-width: 440px;
 }
 
 .modal h3 {
@@ -390,6 +394,21 @@ button:hover:enabled {
   justify-content: flex-end;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal-field label {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.modal-field input {
+  width: 100%;
 }
 
 .stat-value {
