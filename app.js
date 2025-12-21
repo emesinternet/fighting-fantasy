@@ -486,7 +486,7 @@
     cancelButton.addEventListener('click', () => {
       close();
       if (onCancel) {
-        onCancel();
+        onCancel('cancelled');
       }
     });
     confirmButton.addEventListener('click', () => {
@@ -893,48 +893,58 @@
     showActionVisual('drinkPotion', { subline: potionSubline });
   };
 
-  const selectPotion = (onSelected) => {
+  const selectPotion = (onSelected, onCancelled) => {
     showPotionDialog((choice) => {
       player.potion = choice;
       player.potionUsed = false;
       logMessage(`${player.potion} selected.`, 'info');
       renderPotionStatus();
       if (onSelected) {
-        onSelected();
+        onSelected(choice);
       }
     }, () => {
-      alert('Choose a potion to start your adventure.');
-      selectPotion(onSelected);
+      if (onCancelled) {
+        onCancelled();
+      } else {
+        logMessage('Potion selection cancelled.', 'warning');
+      }
     });
   };
 
   const newGame = () => {
+    // Do not finalize state until the player confirms their potion to avoid recursion loops on cancel.
     showStatRollDialog((rolls) => {
-      player.skill = player.maxSkill = rolls.skill;
-      player.stamina = player.maxStamina = rolls.stamina;
-      player.luck = player.maxLuck = rolls.luck;
-      player.meals = 10;
-      player.potion = null;
-      player.potionUsed = false;
+      const applyNewGameState = (potionChoice) => {
+        player.skill = player.maxSkill = rolls.skill;
+        player.stamina = player.maxStamina = rolls.stamina;
+        player.luck = player.maxLuck = rolls.luck;
+        player.meals = 10;
+        player.potion = potionChoice;
+        player.potionUsed = false;
 
-      initialStats.skill = rolls.skill;
-      initialStats.stamina = rolls.stamina;
-      initialStats.luck = rolls.luck;
-      updateInitialStatsDisplay();
+        initialStats.skill = rolls.skill;
+        initialStats.stamina = rolls.stamina;
+        initialStats.luck = rolls.luck;
+        updateInitialStatsDisplay();
 
-      document.getElementById('gold').value = '';
-      document.getElementById('treasure').value = '';
-      document.getElementById('equipment').value = '';
-      document.getElementById('provisions').value = '';
+        document.getElementById('gold').value = '';
+        document.getElementById('treasure').value = '';
+        document.getElementById('equipment').value = '';
+        document.getElementById('provisions').value = '';
 
-      enemies = [];
-      addEnemy();
-      addEnemy();
-      addEnemy();
-      syncPlayerInputs();
-      logMessage('New game started. Roll results applied.', 'success');
-      renderPotionStatus();
-      selectPotion(() => showActionVisual('newGame'));
+        enemies = [];
+        addEnemy();
+        addEnemy();
+        addEnemy();
+        syncPlayerInputs();
+        logMessage('New game started. Roll results applied.', 'success');
+        renderPotionStatus();
+        showActionVisual('newGame');
+      };
+
+      selectPotion((choice) => applyNewGameState(choice), () => {
+        logMessage('New game cancelled before choosing a potion. Current adventure continues.', 'warning');
+      });
     });
   };
 
