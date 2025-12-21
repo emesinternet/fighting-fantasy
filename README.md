@@ -8,3 +8,6 @@ New games start with a single modal that lets you re-roll each stat before locki
 - **Dark-first styling:** `styles.css` drives a flat, minimal dark theme with light serif fantasy headings, compact sans-serif body text, and a monospace log for a terminal feel.
 - **Tightened controls:** Number inputs are capped at three digits with slimmer widths, Add Enemy sits beside Escape Combat, and buttons stay flat with subtle hover lightening.
 - **Script separation:** All gameplay logic lives in `app.js`, which wires the HTML controls, modals, combat handling, and logging.
+
+## Development notes
+- Follow the instructions in `AGENTS.md`; agents should avoid running automated tests or capturing screenshots unless explicitly requested.
