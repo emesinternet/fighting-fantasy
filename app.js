@@ -85,9 +85,10 @@
   };
 
   const updateInitialStatsDisplay = () => {
-    startingBadges.skill.textContent = `Start: ${initialStats.skill || '-'}`;
-    startingBadges.stamina.textContent = `Start: ${initialStats.stamina || '-'}`;
-    startingBadges.luck.textContent = `Start: ${initialStats.luck || '-'}`;
+    const formatStat = (value) => (value ? value : '-');
+    startingBadges.skill.textContent = formatStat(initialStats.skill);
+    startingBadges.stamina.textContent = formatStat(initialStats.stamina);
+    startingBadges.luck.textContent = formatStat(initialStats.luck);
   };
 
   // Lightweight modal scaffolding to keep dialog creation tidy.
@@ -124,19 +125,22 @@
   const bindPlayerInputs = () => {
     // Allow manual adjustments while keeping track of maxima for restoration effects.
     inputs.skill.addEventListener('change', () => {
-      player.skill = parseInt(inputs.skill.value, 10) || 0;
+      player.skill = clamp(parseInt(inputs.skill.value, 10) || 0, 0, 999);
       player.maxSkill = Math.max(player.maxSkill, player.skill);
+      inputs.skill.value = player.skill;
     });
     inputs.stamina.addEventListener('change', () => {
-      player.stamina = parseInt(inputs.stamina.value, 10) || 0;
+      player.stamina = clamp(parseInt(inputs.stamina.value, 10) || 0, 0, 999);
       player.maxStamina = Math.max(player.maxStamina, player.stamina);
+      inputs.stamina.value = player.stamina;
     });
     inputs.luck.addEventListener('change', () => {
-      player.luck = parseInt(inputs.luck.value, 10) || 0;
+      player.luck = clamp(parseInt(inputs.luck.value, 10) || 0, 0, 999);
       player.maxLuck = Math.max(player.maxLuck, player.luck);
+      inputs.luck.value = player.luck;
     });
     inputs.meals.addEventListener('change', () => {
-      player.meals = Math.max(0, parseInt(inputs.meals.value, 10) || 0);
+      player.meals = clamp(parseInt(inputs.meals.value, 10) || 0, 0, 999);
       syncPlayerInputs();
     });
   };
@@ -148,7 +152,7 @@
       return;
     }
     const used = player.potionUsed ? ' (used)' : '';
-    potionStatus.textContent = `Potion: ${player.potion}${used}`;
+    potionStatus.textContent = `${player.potion}${used}`;
     usePotionButton.disabled = player.potionUsed;
   };
 
@@ -475,8 +479,12 @@
       const skillInput = document.createElement('input');
       skillInput.type = 'number';
       skillInput.value = enemy.skill;
+      skillInput.max = 999;
+      skillInput.min = 0;
       skillInput.addEventListener('change', () => {
-        enemy.skill = parseInt(skillInput.value, 10) || 0;
+        const nextSkill = clamp(parseInt(skillInput.value, 10) || 0, 0, 999);
+        enemy.skill = nextSkill;
+        skillInput.value = nextSkill;
       });
       skillLabel.appendChild(skillInput);
       box.appendChild(skillLabel);
@@ -486,8 +494,12 @@
       const staminaInput = document.createElement('input');
       staminaInput.type = 'number';
       staminaInput.value = enemy.stamina;
+      staminaInput.max = 999;
+      staminaInput.min = 0;
       staminaInput.addEventListener('change', () => {
-        enemy.stamina = parseInt(staminaInput.value, 10) || 0;
+        const nextStamina = clamp(parseInt(staminaInput.value, 10) || 0, 0, 999);
+        enemy.stamina = nextStamina;
+        staminaInput.value = nextStamina;
       });
       staminaLabel.appendChild(staminaInput);
       box.appendChild(staminaLabel);
@@ -497,11 +509,13 @@
 
       const attackButton = document.createElement('button');
       attackButton.textContent = 'Attack';
+      attackButton.className = 'attack-button';
       attackButton.addEventListener('click', () => performAttack(index));
       actions.appendChild(attackButton);
 
       const removeButton = document.createElement('button');
       removeButton.textContent = 'Remove';
+      removeButton.className = 'remove-button';
       removeButton.addEventListener('click', () => removeEnemy(index));
       actions.appendChild(removeButton);
 

@@ -13,7 +13,6 @@
   <header class="title-row">
     <div>
       <h1>Fighting Fantasy Companion</h1>
-      <p class="helper-text">Track stats, battles, and fortune in a clean dark canvas.</p>
     </div>
     <button id="newGame" class="primary">New Game</button>
   </header>
@@ -22,14 +21,14 @@
     <section class="column" id="adventureSheet">
       <h2>Adventure Sheet</h2>
       <div class="section">
-        <label>Skill <span id="starting-skill" class="starting-chip">Start: -</span>
-          <input type="number" id="skill" value="0" min="0" class="inline-number">
+        <label>Skill <span id="starting-skill" class="starting-chip">-</span>
+          <input type="number" id="skill" value="0" min="0" max="999" class="inline-number">
         </label>
-        <label>Stamina <span id="starting-stamina" class="starting-chip">Start: -</span>
-          <input type="number" id="stamina" value="0" min="0" class="inline-number">
+        <label>Stamina <span id="starting-stamina" class="starting-chip">-</span>
+          <input type="number" id="stamina" value="0" min="0" max="999" class="inline-number">
         </label>
-        <label>Luck <span id="starting-luck" class="starting-chip">Start: -</span>
-          <input type="number" id="luck" value="0" min="0" class="inline-number">
+        <label>Luck <span id="starting-luck" class="starting-chip">-</span>
+          <input type="number" id="luck" value="0" min="0" max="999" class="inline-number">
         </label>
         <button id="testLuck" class="inline-action">Test Your Luck</button>
       </div>
@@ -39,8 +38,8 @@
         <label>Treasures <textarea id="treasure"></textarea></label>
         <label>Equipment <textarea id="equipment"></textarea></label>
         <label>Provisions <textarea id="provisions"></textarea></label>
-        <div class="row">
-          <label>Meals <input type="number" id="meals" value="10" min="0"></label>
+        <div class="row meals-row">
+          <label>Meals <input type="number" id="meals" value="10" min="0" max="999"></label>
           <button id="eatMeal">Eat Meal</button>
         </div>
         <div class="potion-row">
@@ -51,11 +50,9 @@
     </section>
 
     <section class="column" id="monsters">
-      <div class="section-header">
-        <h2>Monster Encounters</h2>
+      <h2>Monster Encounters</h2>
+      <div class="split-actions">
         <button id="addEnemy">Add Enemy</button>
-      </div>
-      <div class="inline-actions">
         <button id="escape">Escape Combat</button>
       </div>
       <div id="monsterList"></div>
