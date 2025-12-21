@@ -464,3 +464,94 @@ input.inline-number {
 blockquote {
   margin: 0;
 }
+
+/* Action animation overlay ------------------------------------------------ */
+.animation-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.68);
+  backdrop-filter: blur(3px);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 280ms ease, visibility 280ms ease;
+  z-index: 20;
+}
+
+.animation-overlay.is-visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.animation-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+}
+
+.animation-image {
+  width: 480px;
+  height: 480px;
+  object-fit: cover;
+  border-radius: 8px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transform: translateY(18px);
+}
+
+.animation-text {
+  max-width: 640px;
+  margin: 0;
+  font-size: 1.84rem;
+  font-weight: 700;
+  color: var(--accent-strong);
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+@keyframes fade-up-soft {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-down-soft {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+.animation-image.animate-in {
+  animation: fade-up-soft 720ms ease forwards;
+}
+
+.animation-text.animate-in {
+  animation: fade-up-soft 680ms ease forwards;
+}
+
+.animation-image.animate-out,
+.animation-text.animate-out {
+  animation: fade-down-soft 320ms ease forwards;
+}
+
+.test-row {
+  display: flex;
+  justify-content: flex-end;
+}

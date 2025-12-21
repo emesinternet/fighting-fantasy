@@ -27,6 +27,12 @@
   const potionStatus = document.getElementById('potionStatus');
   const usePotionButton = document.getElementById('usePotion');
 
+  // Animation overlay elements for action highlights.
+  const animationOverlay = document.getElementById('action-overlay');
+  const animationImage = document.getElementById('action-image');
+  const animationText = document.getElementById('action-text');
+  const animationTimers = [];
+
   const inputs = {
     skill: document.getElementById('skill'),
     stamina: document.getElementById('stamina'),
@@ -89,6 +95,54 @@
     startingBadges.skill.textContent = formatStat(initialStats.skill);
     startingBadges.stamina.textContent = formatStat(initialStats.stamina);
     startingBadges.luck.textContent = formatStat(initialStats.luck);
+  };
+
+  // Handle the overlay animation lifecycle: fade/slide in image, then text, hold, fade everything out.
+  const clearAnimationTimers = () => {
+    while (animationTimers.length) {
+      clearTimeout(animationTimers.pop());
+    }
+  };
+
+  const resetAnimationClasses = () => {
+    animationImage.classList.remove('animate-in', 'animate-out');
+    animationText.classList.remove('animate-in', 'animate-out');
+  };
+
+  const fadeOutAnimation = () => {
+    animationImage.classList.remove('animate-in');
+    animationText.classList.remove('animate-in');
+    animationImage.classList.add('animate-out');
+    animationText.classList.add('animate-out');
+    animationOverlay.classList.remove('is-visible');
+    animationOverlay.setAttribute('aria-hidden', 'true');
+  };
+
+  const playActionAnimation = () => {
+    clearAnimationTimers();
+    resetAnimationClasses();
+
+    // Restart keyframes reliably on consecutive plays.
+    void animationImage.offsetWidth; // eslint-disable-line no-unused-expressions
+    void animationText.offsetWidth; // eslint-disable-line no-unused-expressions
+
+    animationOverlay.classList.add('is-visible');
+    animationOverlay.setAttribute('aria-hidden', 'false');
+
+    animationTimers.push(setTimeout(() => {
+      animationImage.classList.add('animate-in');
+    }, 40));
+
+    animationTimers.push(setTimeout(() => {
+      animationText.classList.add('animate-in');
+    }, 220));
+
+    const entryDurationMs = 900; // Covers image and text stagger.
+    const holdDurationMs = 1500;
+    const fadeDurationMs = 360;
+
+    animationTimers.push(setTimeout(fadeOutAnimation, entryDurationMs + holdDurationMs));
+    animationTimers.push(setTimeout(resetAnimationClasses, entryDurationMs + holdDurationMs + fadeDurationMs));
   };
 
   // Lightweight modal scaffolding to keep dialog creation tidy.
@@ -707,6 +761,7 @@
   document.getElementById('testLuck').addEventListener('click', showLuckDialog);
   document.getElementById('newGame').addEventListener('click', newGame);
   document.getElementById('usePotion').addEventListener('click', applyPotion);
+  document.getElementById('testAnimation').addEventListener('click', playActionAnimation);
 
   document.getElementById('addEnemy').addEventListener('click', () => addEnemy());
   bindPlayerInputs();

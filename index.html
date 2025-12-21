@@ -66,6 +66,18 @@
     <div id="log" class="log"></div>
   </section>
 
+  <section class="section test-row">
+    <button id="testAnimation" class="primary">Play Animation</button>
+  </section>
+
+  <!-- Overlay for action animations: image fades/slides in, then text, holds, and fades away with the backdrop. -->
+  <div id="action-overlay" class="animation-overlay" aria-hidden="true">
+    <div class="animation-panel">
+      <img id="action-image" class="animation-image" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 480 480'%3E%3Crect width='480' height='480' fill='%23141414'/%3E%3Ctext x='50%25' y='50%25' fill='%23f5f5f5' font-size='42' font-family='Inter, Arial, sans-serif' dominant-baseline='middle' text-anchor='middle'%3EAction Image%3C/text%3E%3C/svg%3E" alt="Action placeholder">
+      <p id="action-text" class="animation-text">Action triggered! Your move lights up the realm.</p>
+    </div>
+  </div>
+
   <script src="app.js"></script>
 </body>
 </html>
