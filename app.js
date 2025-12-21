@@ -184,7 +184,7 @@
     escape: {
       src: 'img/player-escape-battle.png',
       alt: 'The hero slips away from battle',
-      subline: 'You escape, losing 2 Stamina.'
+      subline: 'You escape, lose 2 Stamina.'
     },
     blockEnemy: {
       src: 'img/player-block-enemy.png',
@@ -234,7 +234,7 @@
     unlucky: {
       src: 'img/player-unlucky-general.png',
       alt: 'The hero suffers an unlucky turn',
-      subline: 'Fortune turns away.'
+      subline: 'Unlucky.'
     }
   };
 
@@ -521,7 +521,7 @@
       {
         key: 'afterDamage',
         title: 'After Taking Damage',
-        description: 'Attempt to soften or worsen damage you received.',
+        description: 'Attempt to reduce damage you received.',
         content: null,
         handler: () => {
           testLuck({ type: 'playerHitByEnemy' });
@@ -531,7 +531,7 @@
       {
         key: 'afterHit',
         title: 'After Hitting an Enemy',
-        description: 'Try to amplify damage you just dealt.',
+        description: 'Attempt to amplify damage you just dealt.',
         content: enemySelect,
         handler: () => {
           if (!enemies.length || enemySelect.disabled) {
