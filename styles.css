@@ -136,6 +136,10 @@ select {
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
 }
 
+select#general-roll-select {
+  margin-bottom: 4px;
+}
+
 select:focus {
   outline: 2px solid var(--info);
   outline-offset: 1px;
