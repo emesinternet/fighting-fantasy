@@ -7,8 +7,8 @@ Single-page web sheet for Fighting Fantasy gamebooks. Track player stats, manage
 - **Load:** Pick a saved JSON file to restore stats, notes, potions, enemies, meals, adventure log entries, and decision log entries.
 
 ## Logs
-- **Adventure Log:** Scrollable list sized for five entries; timestamps stay in the save file but are hidden in the UI, and the font is slightly smaller for readability next to the decisions.
-- **Decision Log:** Use the **+** button beside the header to record a page number and decision; entries persist in save files and load with the rest of your progress.
+- **Adventure Log:** Scrollable list sized for five entries with visible timestamps to keep recent actions easy to follow.
+- **Decision Log:** Use the **+** button beside the header to record a page number and decision; timestamps remain in the save file for reference but stay hidden in the UI when browsing entries.
 
 ## Combat and Luck
 - When you hit an enemy, the hit animation plays first, then a modal asks whether to spend Luck for extra damage.
