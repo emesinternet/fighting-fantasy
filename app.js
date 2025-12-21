@@ -100,7 +100,7 @@
   };
 
   // Reusable renderer so adventure and decision logs stay consistent.
-  const renderLogList = ({ container, entries, getIcon, formatMessage }) => {
+  const renderLogList = ({ container, entries, getIcon, formatMessage, showTimestamp = true }) => {
     container.innerHTML = '';
 
     entries.forEach((entry) => {
@@ -108,10 +108,13 @@
       row.className = 'log-entry';
       row.dataset.tone = entry.tone;
 
-      const timestamp = document.createElement('span');
-      timestamp.className = 'log-timestamp';
-      const parsedDate = entry.timestamp ? new Date(entry.timestamp) : new Date();
-      timestamp.textContent = `[${parsedDate.toLocaleTimeString()}]`;
+      if (showTimestamp) {
+        const timestamp = document.createElement('span');
+        timestamp.className = 'log-timestamp';
+        const parsedDate = entry.timestamp ? new Date(entry.timestamp) : new Date();
+        timestamp.textContent = `[${parsedDate.toLocaleTimeString()}]`;
+        row.appendChild(timestamp);
+      }
 
       const icon = document.createElement('span');
       icon.className = 'log-icon';
@@ -123,7 +126,6 @@
       const content = formatMessage ? formatMessage(entry) : entry.message;
       body.innerHTML = emphasizeLogTokens(content || '');
 
-      row.appendChild(timestamp);
       row.appendChild(icon);
       row.appendChild(body);
       container.appendChild(row);
@@ -164,11 +166,13 @@
   };
 
   const renderDecisionLog = () => {
+    // Decision entries stay concise in the UI while keeping timestamps in saved data.
     renderLogList({
       container: decisionLogEl,
       entries: decisionLogHistory,
       getIcon: () => '🧭',
-      formatMessage: (entry) => entry.message || `Page ${entry.pageNumber || '—'} — ${entry.decision}`
+      formatMessage: (entry) => entry.message || `Page ${entry.pageNumber || '—'} — ${entry.decision}`,
+      showTimestamp: false
     });
   };
 
@@ -393,9 +397,8 @@
     const decisionLabel = document.createElement('label');
     decisionLabel.textContent = 'Decision';
     decisionLabel.htmlFor = 'decision-text';
-    const decisionInput = document.createElement('input');
+    const decisionInput = document.createElement('textarea');
     decisionInput.id = 'decision-text';
-    decisionInput.type = 'text';
     decisionInput.placeholder = 'e.g. Took the west tunnel';
     decisionField.appendChild(decisionLabel);
     decisionField.appendChild(decisionInput);
@@ -433,7 +436,6 @@
       }
 
       addDecisionLogEntry(pageValue, decisionValue);
-      logMessage(`Decision noted for Page ${pageValue}: ${decisionValue}`, 'info');
       close();
     });
   };
@@ -569,7 +571,7 @@
     playerHitEnemy: {
       src: 'img/player-hit-enemy.png',
       alt: 'The hero lands a hit on an enemy',
-      subline: 'Your strike land!'
+      subline: 'Your strike lands!'
     },
     playerMissEnemy: {
       src: 'img/player-miss-enemy.png',
@@ -1210,7 +1212,7 @@
     const isLucky = roll <= player.luck;
     player.luck = Math.max(0, player.luck - 1);
     syncPlayerInputs();
-    logMessage(`Testing Luck: rolled ${roll} vs Luck ${player.luck + 1}. ${isLucky ? 'Lucky!' : 'Unlucky.'}`, 'action');
+    logMessage(`Testing Luck: rolled ${roll} vs ${player.luck + 1}. ${isLucky ? 'Lucky!' : 'Unlucky.'}`, 'action');
 
     const isPlayerHittingEnemy = context?.type === 'playerHitEnemy';
     const isPlayerHitByEnemy = context?.type === 'playerHitByEnemy';
@@ -1289,7 +1291,7 @@
     const monsterAttack = rollDice(2) + enemy.skill;
     const playerAttack = rollDice(2) + player.skill;
 
-    logMessage(`Combat roll vs Enemy ${index + 1}: Monster ${monsterAttack} vs Player ${playerAttack}.`, 'action');
+    logMessage(`Combat vs Enemy ${index + 1}: Monster ${monsterAttack} vs Player ${playerAttack}.`, 'action');
 
     if (monsterAttack === playerAttack) {
       logMessage('Standoff! No damage dealt.', 'info');
