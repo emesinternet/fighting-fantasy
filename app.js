@@ -88,6 +88,11 @@
     } else {
       logEl.appendChild(entry);
     }
+
+    // Keep the adventure log focused on the latest moments by trimming to five lines.
+    while (logEl.childElementCount > 5) {
+      logEl.removeChild(logEl.lastChild);
+    }
   };
 
   const updateInitialStatsDisplay = () => {
@@ -138,7 +143,7 @@
     }, 220));
 
     const entryDurationMs = 900; // Covers image and text stagger.
-    const holdDurationMs = 1500;
+    const holdDurationMs = 2000;
     const fadeDurationMs = 360;
 
     animationTimers.push(setTimeout(fadeOutAnimation, entryDurationMs + holdDurationMs));
@@ -218,6 +223,35 @@
       subline: 'Fortune turns away.'
     }
   };
+
+  const animationTesterSelect = document.getElementById('animationScenario');
+
+  // Human-friendly labels keep the animation tester dropdown aligned with how each image is used in-game.
+  const actionVisualLabels = {
+    newGame: 'New game setup',
+    eatMeal: 'Eat Meal recovery',
+    drinkPotion: 'Use Potion',
+    escape: 'Escape Combat',
+    blockEnemy: 'Player blocks enemy hit',
+    enemyHitYou: 'Player takes a hit',
+    playerHitEnemy: 'Player hits enemy',
+    playerMissEnemy: 'Player misses enemy',
+    defeatEnemy: 'Enemy defeated',
+    loseCombat: 'Player loses exchange',
+    lose: 'Player stamina reaches 0',
+    win: 'Player victory',
+    lucky: 'Lucky roll',
+    unlucky: 'Unlucky roll'
+  };
+
+  if (animationTesterSelect) {
+    Object.entries(actionVisualLabels).forEach(([key, label]) => {
+      const option = document.createElement('option');
+      option.value = key;
+      option.textContent = label;
+      animationTesterSelect.appendChild(option);
+    });
+  }
 
   const showActionVisual = (key, overrides = {}) => {
     const visual = actionVisuals[key];
@@ -874,7 +908,12 @@
   document.getElementById('newGame').addEventListener('click', newGame);
   document.getElementById('usePotion').addEventListener('click', applyPotion);
   document.getElementById('testAnimation').addEventListener('click', () => {
-    showActionVisual('win', { subline: 'Demo flourish for testing.' });
+    const scenario = animationTesterSelect ? animationTesterSelect.value : 'win';
+    if (!scenario || !actionVisuals[scenario]) {
+      alert('Select an action art scenario to preview.');
+      return;
+    }
+    showActionVisual(scenario);
   });
 
   document.getElementById('addEnemy').addEventListener('click', () => addEnemy());

@@ -8,12 +8,13 @@ New games start with a single modal that lets you re-roll each stat before locki
 - **Dark-first styling:** `styles.css` drives a flat, minimal monochrome theme with light serif fantasy headings, compact sans-serif body text, and a monospace log for a terminal feel. Dialogs, dropdowns, and cards all stay grayscale for contrast in dark mode.
 - **Tightened controls:** Number inputs are capped at three digits with slimmer widths, Add Enemy sits beside Escape Combat, and modal action buttons fill their cards. Enemy actions now bias 75/25 toward Attack while keeping Remove wide enough to read, enemy cards mirror the Monster Encounters border, and inline controls like Test Luck, Meals, and Potions align to the right of their rows.
 - **Compact notes:** Gold Pieces, Treasures, Equipment, and Provisions sit in a 2x2 grid that collapses to a single column on small screens to save space without sacrificing readability.
+- **Focused adventure log:** The log keeps the five most recent updates visible so key actions stay easy to scan.
 - **Script separation:** All gameplay logic lives in `app.js`, which wires the HTML controls, modals, combat handling, and logging.
 
 ## Action art and animation
 - Each key action triggers matching art from `img/`: New Game, Eat Meal, Use Potion, Escape Combat, combat hits/blocks/defeats, and Lucky/Unlucky rolls all display short sublines alongside their illustrations.
-- A "Play Animation" button sits beneath the Adventure Log to trigger the overlay with the victory art for quick testing.
-- The overlay still darkens and softly blurs the full viewport, then fades/slides the centered image in before the subline text, holds briefly, and fades away.
+- A scenario dropdown under the Adventure Log lists every action art use; selecting one and clicking "Play Animation" previews only that scenario.
+- The overlay darkens and softly blurs the full viewport, then fades/slides the centered image in before the subline text, holds a little longer, and fades away.
 
 ## Development notes
 - Follow the instructions in `AGENTS.md`; agents should avoid running automated tests or capturing screenshots unless explicitly requested.
