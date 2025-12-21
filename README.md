@@ -6,7 +6,8 @@ New games start with a single modal that lets you re-roll each stat before locki
 
 ## UI and assets
 - **Dark-first styling:** `styles.css` drives a flat, minimal monochrome theme with light serif fantasy headings, compact sans-serif body text, and a monospace log for a terminal feel. Dialogs, dropdowns, and cards all stay grayscale for contrast in dark mode.
-- **Tightened controls:** Number inputs are capped at three digits with slimmer widths, Add Enemy sits beside Escape Combat, buttons stay flat with subtle hover lightening, and modal action buttons fill their cards. Enemy actions share even spacing, enemy cards mirror the Monster Encounters border, and inline controls like Meals and Potion text align vertically with their buttons.
+- **Tightened controls:** Number inputs are capped at three digits with slimmer widths, Add Enemy sits beside Escape Combat, and modal action buttons fill their cards. Enemy actions now bias 75/25 toward Attack while keeping Remove wide enough to read, enemy cards mirror the Monster Encounters border, and inline controls like Test Luck, Meals, and Potions align to the right of their rows.
+- **Compact notes:** Gold Pieces, Treasures, Equipment, and Provisions sit in a 2x2 grid that collapses to a single column on small screens to save space without sacrificing readability.
 - **Script separation:** All gameplay logic lives in `app.js`, which wires the HTML controls, modals, combat handling, and logging.
 
 ## Development notes

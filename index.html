@@ -30,21 +30,23 @@
         <label>Luck <span id="starting-luck" class="starting-chip">-</span>
           <input type="number" id="luck" value="0" min="0" max="999" class="inline-number">
         </label>
-        <button id="testLuck" class="inline-action">Test Your Luck</button>
+        <button id="testLuck" class="inline-action align-end">Test Your Luck</button>
       </div>
 
       <div class="section">
-        <label>Gold Pieces <textarea id="gold"></textarea></label>
-        <label>Treasures <textarea id="treasure"></textarea></label>
-        <label>Equipment <textarea id="equipment"></textarea></label>
-        <label>Provisions <textarea id="provisions"></textarea></label>
+        <div class="notes-grid">
+          <label>Gold Pieces <textarea id="gold"></textarea></label>
+          <label>Treasures <textarea id="treasure"></textarea></label>
+          <label>Equipment <textarea id="equipment"></textarea></label>
+          <label>Provisions <textarea id="provisions"></textarea></label>
+        </div>
         <div class="row meals-row">
           <label class="inline-label">Meals <input type="number" id="meals" value="10" min="0" max="999"></label>
-          <button id="eatMeal">Eat Meal</button>
+          <button id="eatMeal" class="align-end">Eat Meal</button>
         </div>
         <div class="potion-row">
           <label class="inline-label">Potion <span id="potionStatus" class="potion-status">No potion selected.</span></label>
-          <button id="usePotion">Use Potion</button>
+          <button id="usePotion" class="align-end">Use Potion</button>
         </div>
       </div>
     </section>

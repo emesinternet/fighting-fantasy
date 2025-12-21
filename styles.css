@@ -195,7 +195,7 @@ button:disabled {
 
 .enemy-actions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 3fr minmax(min-content, 1fr);
   gap: 8px;
   align-items: center;
   margin-top: 8px;
@@ -204,6 +204,11 @@ button:disabled {
 .inline-action {
   align-self: flex-start;
   margin-top: 6px;
+}
+
+.align-end {
+  margin-left: auto;
+  justify-self: end;
 }
 
 .split-actions {
@@ -403,6 +408,22 @@ input.inline-number {
   font-weight: 600;
 }
 
+/* Keep note fields compact without sacrificing readability. */
+.notes-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (max-width: 720px) {
+  .notes-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.potion-row button {
+  align-self: center;
+}
+
 .potion-status {
   color: var(--muted);
   font-weight: 600;
@@ -417,7 +438,7 @@ input.inline-number {
 }
 
 .meals-row button {
-  align-self: stretch;
+  align-self: center;
 }
 
 .enemy-stats {
@@ -431,8 +452,13 @@ input.inline-number {
   margin-top: 0;
 }
 
-.enemy-actions button {
+.enemy-actions .attack-button {
   width: 100%;
+}
+
+.enemy-actions .remove-button {
+  width: 100%;
+  min-width: min-content;
 }
 
 blockquote {
