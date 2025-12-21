@@ -12,6 +12,19 @@
     h1 {
       margin-bottom: 8px;
     }
+    .title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .starting-stats {
+      font-size: 0.95rem;
+      background: #f1f1f1;
+      padding: 6px 10px;
+      border-radius: 6px;
+    }
     .layout {
       display: flex;
       gap: 16px;
@@ -55,18 +68,82 @@
       white-space: pre-line;
       background: #f9f9f9;
     }
+    .potion-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      padding: 12px;
+    }
+    .modal {
+      background: #fff;
+      padding: 16px;
+      border-radius: 8px;
+      max-width: 760px;
+      width: 100%;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+    .grid-three {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin: 12px 0;
+    }
+    .option-card {
+      border: 1px solid #ddd;
+      padding: 10px;
+      border-radius: 6px;
+      background: #fafafa;
+    }
+    .option-card.selected {
+      border-color: #4a90e2;
+      box-shadow: 0 0 0 2px #4a90e2;
+      background: #f0f6ff;
+    }
+    .option-card h4 {
+      margin: 0 0 4px 0;
+    }
+    .option-card p {
+      margin: 4px 0;
+      font-size: 0.9rem;
+    }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+    .helper-text {
+      font-size: 0.85rem;
+      color: #555;
+    }
     button {
       cursor: pointer;
     }
   </style>
 </head>
 <body>
-  <h1>Fighting Fantasy Companion</h1>
+  <h1 class="title-row">
+    <span>Fighting Fantasy Companion</span>
+    <span id="initialStatsDisplay" class="starting-stats">Starting Skill: - | Stamina: - | Luck: -</span>
+  </h1>
   <button id="newGame">New Game</button>
   <div class="actions row">
     <button id="escape">Escape Combat</button>
     <button id="testLuck">Test Your Luck</button>
-    <span id="potionStatus"></span>
   </div>
   <div class="layout">
     <div class="column" id="adventureSheet">
@@ -84,6 +161,10 @@
         <div class="row">
           <label>Meals <input type="number" id="meals" value="10" min="0"></label>
           <button id="eatMeal">Eat Meal</button>
+        </div>
+        <div class="potion-row">
+          <span id="potionStatus">No potion selected.</span>
+          <button id="usePotion">Use Potion</button>
         </div>
       </div>
     </div>
@@ -111,9 +192,17 @@
       potionUsed: false
     };
 
+    // Track the unmodifiable starting maxima so we can surface them near the title.
+    const initialStats = {
+      skill: 0,
+      stamina: 0,
+      luck: 0
+    };
+
     const enemies = Array.from({ length: 6 }, () => ({ skill: 0, stamina: 0 }));
 
     const logEl = document.getElementById('log');
+    const initialStatsDisplay = document.getElementById('initialStatsDisplay');
     const potionStatus = document.getElementById('potionStatus');
 
     const inputs = {
@@ -132,6 +221,33 @@
     const logMessage = (message) => {
       const timestamp = new Date().toLocaleTimeString();
       logEl.textContent = `[${timestamp}] ${message}\n${logEl.textContent}`.trim();
+    };
+
+    const updateInitialStatsDisplay = () => {
+      initialStatsDisplay.textContent = `Starting Skill: ${initialStats.skill || '-'} | Stamina: ${initialStats.stamina || '-'} | Luck: ${initialStats.luck || '-'}`;
+    };
+
+    // Lightweight modal scaffolding to keep dialog creation tidy.
+    const createModal = (title, description) => {
+      const overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      const modal = document.createElement('div');
+      modal.className = 'modal';
+
+      const heading = document.createElement('h3');
+      heading.textContent = title;
+      modal.appendChild(heading);
+
+      if (description) {
+        const desc = document.createElement('p');
+        desc.textContent = description;
+        modal.appendChild(desc);
+      }
+
+      overlay.appendChild(modal);
+      document.body.appendChild(overlay);
+
+      return { overlay, modal, close: () => overlay.remove() };
     };
 
     const syncPlayerInputs = () => {
@@ -164,11 +280,176 @@
 
     const renderPotionStatus = () => {
       if (!player.potion) {
-        potionStatus.textContent = '';
+        potionStatus.textContent = 'No potion selected.';
         return;
       }
       const used = player.potionUsed ? ' (used)' : '';
       potionStatus.textContent = `Potion: ${player.potion}${used}`;
+    };
+
+    const statConfigs = {
+      skill: {
+        label: 'Skill',
+        roll: () => {
+          const dice = rollDice(1);
+          const total = dice + 6;
+          return { total, detail: `${dice} + 6 = ${total}` };
+        },
+        helper: 'Roll 1D6 + 6'
+      },
+      stamina: {
+        label: 'Stamina',
+        roll: () => {
+          const dice = rollDice(2);
+          const total = dice + 12;
+          return { total, detail: `${dice} + 12 = ${total}` };
+        },
+        helper: 'Roll 2D6 + 12'
+      },
+      luck: {
+        label: 'Luck',
+        roll: () => {
+          const dice = rollDice(1);
+          const total = dice + 6;
+          return { total, detail: `${dice} + 6 = ${total}` };
+        },
+        helper: 'Roll 1D6 + 6'
+      }
+    };
+
+    // Allow the player to roll each stat multiple times before accepting the spread.
+    const showStatRollDialog = (onComplete) => {
+      const { modal, close } = createModal('Roll Your Stats', 'Roll each stat as many times as you like, then start your adventure.');
+
+      const grid = document.createElement('div');
+      grid.className = 'grid-three';
+      const applyButton = document.createElement('button');
+      applyButton.textContent = 'Start Adventure';
+      applyButton.disabled = true;
+
+      const cancelButton = document.createElement('button');
+      cancelButton.textContent = 'Cancel';
+
+      const currentRolls = { skill: null, stamina: null, luck: null };
+
+      const updateApplyState = () => {
+        applyButton.disabled = !Object.values(currentRolls).every((value) => value !== null);
+      };
+
+      Object.entries(statConfigs).forEach(([key, config]) => {
+        const card = document.createElement('div');
+        card.className = 'option-card';
+
+        const title = document.createElement('h4');
+        title.textContent = config.label;
+        card.appendChild(title);
+
+        const value = document.createElement('div');
+        value.className = 'stat-value';
+        value.textContent = '-';
+        card.appendChild(value);
+
+        const detail = document.createElement('p');
+        detail.className = 'helper-text';
+        detail.textContent = config.helper;
+        card.appendChild(detail);
+
+        const rollButton = document.createElement('button');
+        rollButton.textContent = 'Roll';
+        rollButton.addEventListener('click', () => {
+          const result = config.roll();
+          currentRolls[key] = result.total;
+          value.textContent = result.total;
+          detail.textContent = `Rolled ${result.detail}`;
+          updateApplyState();
+        });
+        card.appendChild(rollButton);
+
+        grid.appendChild(card);
+      });
+
+      modal.appendChild(grid);
+
+      const actions = document.createElement('div');
+      actions.className = 'modal-actions';
+      actions.appendChild(cancelButton);
+      actions.appendChild(applyButton);
+      modal.appendChild(actions);
+
+      cancelButton.addEventListener('click', () => {
+        close();
+      });
+
+      applyButton.addEventListener('click', () => {
+        close();
+        onComplete(currentRolls);
+      });
+    };
+
+    const potionOptions = [
+      { name: 'Potion of Skill', description: 'Restores Skill to its starting maximum when used.' },
+      { name: 'Potion of Strength', description: 'Restores Stamina to its starting maximum when used.' },
+      { name: 'Potion of Fortune', description: 'Restores Luck and increases your maximum Luck by 1.' }
+    ];
+
+    const showPotionDialog = (onSelect, onCancel) => {
+      const { modal, close } = createModal('Choose Your Potion', 'Pick one potion to bring on your adventure.');
+      const grid = document.createElement('div');
+      grid.className = 'grid-three';
+      let selected = null;
+
+      const cards = potionOptions.map((option) => {
+        const card = document.createElement('div');
+        card.className = 'option-card';
+
+        const heading = document.createElement('h4');
+        heading.textContent = option.name;
+        card.appendChild(heading);
+
+        const info = document.createElement('p');
+        info.textContent = option.description;
+        card.appendChild(info);
+
+        const chooseButton = document.createElement('button');
+        chooseButton.textContent = 'Select';
+        chooseButton.addEventListener('click', () => {
+          selected = option.name;
+          cards.forEach((c) => c.card.classList.remove('selected'));
+          card.classList.add('selected');
+        });
+        card.appendChild(chooseButton);
+
+        return { card };
+      });
+
+      cards.forEach(({ card }) => grid.appendChild(card));
+      modal.appendChild(grid);
+
+      const actions = document.createElement('div');
+      actions.className = 'modal-actions';
+      const confirmButton = document.createElement('button');
+      confirmButton.textContent = 'Confirm';
+      const cancelButton = document.createElement('button');
+      cancelButton.textContent = 'Cancel';
+
+      cancelButton.addEventListener('click', () => {
+        close();
+        if (onCancel) {
+          onCancel();
+        }
+      });
+      confirmButton.addEventListener('click', () => {
+        if (!selected) {
+          alert('Please select a potion to continue.');
+          return;
+        }
+        close();
+        onSelect(selected);
+      });
+
+      actions.appendChild(cancelButton);
+      actions.appendChild(confirmButton);
+      modal.appendChild(actions);
     };
 
     // Player interactions ----------------------------------------------------
@@ -316,57 +597,51 @@
         player.maxLuck += 1;
         player.luck = player.maxLuck;
         logMessage('Potion of Fortune used. Luck increased and restored.');
+        initialStats.luck = player.maxLuck;
+        updateInitialStatsDisplay();
       }
       player.potionUsed = true;
       syncPlayerInputs();
-    };
-
-    const selectPotion = () => {
-      const choice = prompt('Choose a potion: 1) Potion of Skill 2) Potion of Strength 3) Potion of Fortune');
-      if (choice === '1') {
-        player.potion = 'Potion of Skill';
-      } else if (choice === '2') {
-        player.potion = 'Potion of Strength';
-      } else if (choice === '3') {
-        player.potion = 'Potion of Fortune';
-      } else {
-        alert('Invalid choice. Please select a potion to begin.');
-        return selectPotion();
-      }
-      player.potionUsed = false;
-      logMessage(`${player.potion} selected.`);
       renderPotionStatus();
     };
 
+    const selectPotion = () => {
+      showPotionDialog((choice) => {
+        player.potion = choice;
+        player.potionUsed = false;
+        logMessage(`${player.potion} selected.`);
+        renderPotionStatus();
+      }, () => {
+        alert('Choose a potion to start your adventure.');
+        selectPotion();
+      });
+    };
+
     const newGame = () => {
-      alert('Roll 1D6 + 6 for initial Skill.');
-      const skillRoll = rollDice(1) + 6;
-      alert(`You rolled ${skillRoll - 6} + 6 = ${skillRoll} Skill.`);
+      showStatRollDialog((rolls) => {
+        player.skill = player.maxSkill = rolls.skill;
+        player.stamina = player.maxStamina = rolls.stamina;
+        player.luck = player.maxLuck = rolls.luck;
+        player.meals = 10;
+        player.potion = null;
+        player.potionUsed = false;
 
-      alert('Roll 2D6 + 12 for initial Stamina.');
-      const staminaRoll = rollDice(2) + 12;
-      alert(`You rolled ${staminaRoll - 12} + 12 = ${staminaRoll} Stamina.`);
+        initialStats.skill = rolls.skill;
+        initialStats.stamina = rolls.stamina;
+        initialStats.luck = rolls.luck;
+        updateInitialStatsDisplay();
 
-      alert('Roll 1D6 + 6 for initial Luck.');
-      const luckRoll = rollDice(1) + 6;
-      alert(`You rolled ${luckRoll - 6} + 6 = ${luckRoll} Luck.`);
+        document.getElementById('gold').value = '';
+        document.getElementById('treasure').value = '';
+        document.getElementById('equipment').value = '';
+        document.getElementById('provisions').value = '';
 
-      player.skill = player.maxSkill = skillRoll;
-      player.stamina = player.maxStamina = staminaRoll;
-      player.luck = player.maxLuck = luckRoll;
-      player.meals = 10;
-      player.potion = null;
-      player.potionUsed = false;
-
-      document.getElementById('gold').value = '';
-      document.getElementById('treasure').value = '';
-      document.getElementById('equipment').value = '';
-      document.getElementById('provisions').value = '';
-
-      enemies.forEach((_, idx) => resetEnemy(idx));
-      syncPlayerInputs();
-      logMessage('New game started. Roll results applied.');
-      selectPotion();
+        enemies.forEach((_, idx) => resetEnemy(idx));
+        syncPlayerInputs();
+        logMessage('New game started. Roll results applied.');
+        renderPotionStatus();
+        selectPotion();
+      });
     };
 
     // Wiring ----------------------------------------------------------------
@@ -388,6 +663,7 @@
       }
     });
     document.getElementById('newGame').addEventListener('click', newGame);
+    document.getElementById('usePotion').addEventListener('click', applyPotion);
 
     buildMonsterBoxes();
     bindPlayerInputs();
@@ -395,12 +671,8 @@
       document.getElementById(`attack-${index}`).addEventListener('click', () => performAttack(index));
     });
 
-    // Simple control to apply the selected potion; added as a separate button for clarity.
-    const potionButton = document.createElement('button');
-    potionButton.textContent = 'Use Potion';
-    potionButton.addEventListener('click', applyPotion);
-    document.querySelector('.actions').appendChild(potionButton);
-
+    updateInitialStatsDisplay();
+    renderPotionStatus();
     syncPlayerInputs();
   </script>
 </body>
