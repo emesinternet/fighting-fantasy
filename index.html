@@ -70,8 +70,21 @@
     </main>
 
     <section class="section log-section">
-      <h3>Adventure Log</h3>
-      <div id="log" class="log"></div>
+      <div class="log-grid">
+        <div class="log-panel adventure-log">
+          <div class="log-header">
+            <h3>Adventure Log</h3>
+          </div>
+          <div id="log" class="log"></div>
+        </div>
+        <div class="log-panel decision-log">
+          <div class="log-header">
+            <h3>Decision Log</h3>
+            <button id="addDecision" class="btn btn-positive" aria-label="Add decision">+</button>
+          </div>
+          <div id="decisionLog" class="log"></div>
+        </div>
+      </div>
     </section>
   </div>
 

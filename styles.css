@@ -254,10 +254,44 @@ button:hover:enabled {
   margin-top: 12px;
 }
 
+.log-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 12px;
+}
+
+.log-panel {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.log-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.log-header h3 {
+  margin: 0;
+}
+
+.log-header button {
+  padding: 6px 10px;
+  min-width: 40px;
+}
+
 .log {
   border: 1px solid var(--panel-border);
   padding: 10px;
-  min-height: 80px;
+  --log-visible-rows: 5;
+  --log-row-height: 46px;
+  min-height: calc(var(--log-visible-rows) * var(--log-row-height));
+  max-height: calc(var(--log-visible-rows) * var(--log-row-height));
+  overflow-y: auto;
   background: #0f0f0f;
   font-size: 0.85rem;
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
@@ -295,6 +329,16 @@ button:hover:enabled {
   flex: 1;
   color: var(--text);
   font-size: 0.84rem;
+}
+
+.adventure-log .log,
+.adventure-log .log-body,
+.adventure-log .log-icon {
+  font-size: 0.8rem;
+}
+
+.adventure-log .log-timestamp {
+  display: none;
 }
 
 .log-entry[data-tone='success'] .log-body,
