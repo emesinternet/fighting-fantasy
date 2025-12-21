@@ -155,7 +155,7 @@
     newGame: {
       src: 'img/player-new-game.png',
       alt: 'An adventurer prepares for a fresh quest',
-      subline: 'A new journey begins.'
+      subline: 'A new adventure begins.'
     },
     eatMeal: {
       src: 'img/player-eat-meal.png',
@@ -175,22 +175,22 @@
     blockEnemy: {
       src: 'img/player-block-enemy.png',
       alt: 'The hero blocks an enemy strike',
-      subline: 'You hold the line.'
+      subline: 'Lucky block, restore 1 stamina'
     },
     enemyHitYou: {
       src: 'img/player-fail-block-enemy.png',
       alt: 'The hero is struck by an enemy',
-      subline: 'A blow slips through your guard.'
+      subline: 'Unlocky block, lose 1 stamina.'
     },
     playerHitEnemy: {
       src: 'img/player-hit-enemy.png',
       alt: 'The hero lands a hit on an enemy',
-      subline: 'Your strike hits home.'
+      subline: 'Your strike land!'
     },
     playerMissEnemy: {
       src: 'img/player-miss-enemy.png',
       alt: 'The hero misses an enemy attack',
-      subline: 'Your swing goes wide.'
+      subline: 'Your strike misses'
     },
     defeatEnemy: {
       src: 'img/player-defeat-enemy.png',
@@ -200,7 +200,7 @@
     loseCombat: {
       src: 'img/player-lose-combat.png',
       alt: 'The hero reels from combat',
-      subline: 'You suffer 2 Stamina damage.'
+      subline: 'You have been killed. Game Over.'
     },
     lose: {
       src: 'img/player-lose.png',
@@ -210,7 +210,7 @@
     win: {
       src: 'img/player-win.png',
       alt: 'The hero celebrates victory',
-      subline: 'You claim the day.'
+      subline: 'You completed the adventure!'
     },
     lucky: {
       src: 'img/player-lucky-general.png',
@@ -237,8 +237,8 @@
     playerHitEnemy: 'Player hits enemy',
     playerMissEnemy: 'Player misses enemy',
     defeatEnemy: 'Enemy defeated',
-    loseCombat: 'Player loses exchange',
-    lose: 'Player stamina reaches 0',
+    loseCombat: 'Combat defeat (0 Stamina)',
+    lose: 'Game Over (non-combat)',
     win: 'Player victory',
     lucky: 'Lucky roll',
     unlucky: 'Unlucky roll'
@@ -632,9 +632,14 @@
     syncPlayerInputs();
     logMessage('You escaped combat and lost 2 Stamina.');
     const defeatedFromEscape = player.stamina === 0;
-    showActionVisual(defeatedFromEscape ? 'lose' : 'escape', {
-      subline: defeatedFromEscape ? 'You collapse after the dash.' : 'You escape, losing 2 Stamina.'
-    });
+    if (defeatedFromEscape) {
+      logMessage('You have been killed. Game Over.');
+      showActionVisual('loseCombat');
+    } else {
+      showActionVisual('escape', {
+        subline: 'You escape, losing 2 Stamina.'
+      });
+    }
   };
 
   // Enemy handling --------------------------------------------------------
@@ -730,13 +735,21 @@
     syncPlayerInputs();
     logMessage(`Testing Luck: rolled ${roll} vs Luck ${player.luck + 1}. ${isLucky ? 'Lucky!' : 'Unlucky.'}`);
 
+    const isPlayerHittingEnemy = context?.type === 'playerHitEnemy';
+    const isPlayerHitByEnemy = context?.type === 'playerHitByEnemy';
+
     let luckSubline = isLucky ? 'Luck holds firm.' : 'Luck slips away.';
-    if (context?.type === 'playerHitEnemy') {
+    if (isPlayerHittingEnemy) {
       luckSubline = isLucky ? 'Extra damage lands true.' : 'The foe steadies.';
-    } else if (context?.type === 'playerHitByEnemy') {
+    } else if (isPlayerHitByEnemy) {
       luckSubline = isLucky ? 'You soften the blow.' : 'The wound deepens.';
     }
-    showActionVisual(isLucky ? 'lucky' : 'unlucky', { subline: luckSubline });
+
+    // Only play the general luck animation when this is not a combat mitigation test, so the
+    // combat-specific art can stay focused on the block and failed block outcomes.
+    if (!isPlayerHitByEnemy) {
+      showActionVisual(isLucky ? 'lucky' : 'unlucky', { subline: luckSubline });
+    }
 
     if (!context) {
       return { outcome: 'general', lucky: isLucky };
@@ -764,6 +777,7 @@
       player.stamina = clamp(player.stamina + adjustment, 0, player.maxStamina);
       syncPlayerInputs();
       logMessage(isLucky ? 'Lucky! You reduce the damage by gaining 1 Stamina.' : 'Unlucky! You lose an additional 1 Stamina.');
+      showActionVisual(isLucky ? 'blockEnemy' : 'enemyHitYou');
     }
     return { outcome: context.type, lucky: isLucky };
   };
@@ -788,7 +802,6 @@
 
     if (monsterAttack === playerAttack) {
       logMessage('Standoff! No damage dealt.');
-      showActionVisual('blockEnemy', { subline: 'Neither side breaks through.' });
       return;
     }
 
@@ -796,7 +809,7 @@
     if (playerAttack > monsterAttack) {
       enemy.stamina = Math.max(0, enemy.stamina - 2);
       logMessage('You hit the enemy for 2 damage.');
-      showActionVisual('playerHitEnemy', { subline: '2 Stamina damage dealt.' });
+      showActionVisual('playerHitEnemy');
       defeated = enemy.stamina === 0;
 
       if (!defeated) {
@@ -810,13 +823,15 @@
       player.stamina = clamp(player.stamina - 2, 0, player.maxStamina);
       syncPlayerInputs();
       logMessage('The enemy hits you for 2 damage.');
-      const isDowned = player.stamina === 0;
-      showActionVisual(isDowned ? 'lose' : 'loseCombat', {
-        subline: isDowned ? 'You collapse from the blow.' : 'You suffer 2 Stamina damage.'
-      });
       const wantsLuck = confirm('You took damage. Use Luck to reduce it?');
       if (wantsLuck) {
         testLuck({ type: 'playerHitByEnemy', index });
+      }
+
+      // Only trigger the combat defeat art once Luck adjustments settle on zero Stamina.
+      if (player.stamina === 0) {
+        logMessage('You have been killed. Game Over.');
+        showActionVisual('loseCombat');
       }
     }
 
@@ -901,11 +916,18 @@
     });
   };
 
+  // Allow non-combat failures to showcase the dedicated defeat art without altering stats.
+  const playGameOverVisual = () => {
+    logMessage('Game Over triggered outside combat.');
+    showActionVisual('lose');
+  };
+
   // Wiring ----------------------------------------------------------------
   document.getElementById('eatMeal').addEventListener('click', handleEatMeal);
   document.getElementById('escape').addEventListener('click', escapeCombat);
   document.getElementById('testLuck').addEventListener('click', showLuckDialog);
   document.getElementById('newGame').addEventListener('click', newGame);
+  document.getElementById('gameOver').addEventListener('click', playGameOverVisual);
   document.getElementById('usePotion').addEventListener('click', applyPotion);
   document.getElementById('testAnimation').addEventListener('click', () => {
     const scenario = animationTesterSelect ? animationTesterSelect.value : 'win';
