@@ -14,3 +14,7 @@ This repository hosts a minimal single-page companion app for the Fighting Fanta
 - Keep the UI simple and focused on the core gameplay logic (stats tracking, combat, luck, escaping, meals). Stay on a single HTML file unless expansion becomes necessary.
 - Preserve or improve helpful comments alongside logic changes.
 - Ensure README.md stays concise and up to date when behavior changes.
+
+## Workflow reminders for agents
+- Do not run automated tests or capture screenshots after making changes unless the user explicitly requests them.
+- Follow all repository instructions even when performing small maintenance updates.

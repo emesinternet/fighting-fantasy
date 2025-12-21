@@ -4,404 +4,66 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Fighting Fantasy Companion</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 16px;
-    }
-    h1 {
-      margin-bottom: 8px;
-    }
-    .layout {
-      display: flex;
-      gap: 16px;
-    }
-    .column {
-      flex: 1;
-      border: 1px solid #ccc;
-      padding: 12px;
-      border-radius: 4px;
-    }
-    .section {
-      margin-bottom: 12px;
-    }
-    .enemy-box {
-      border: 1px solid #ddd;
-      padding: 8px;
-      border-radius: 4px;
-      margin-bottom: 8px;
-    }
-    label {
-      display: block;
-      margin-top: 6px;
-    }
-    textarea {
-      width: 100%;
-      min-height: 40px;
-    }
-    .actions {
-      margin: 12px 0;
-    }
-    .row {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      flex-wrap: wrap;
-    }
-    .log {
-      border: 1px solid #ccc;
-      padding: 8px;
-      min-height: 60px;
-      white-space: pre-line;
-      background: #f9f9f9;
-    }
-    button {
-      cursor: pointer;
-    }
-  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <h1>Fighting Fantasy Companion</h1>
-  <button id="newGame">New Game</button>
-  <div class="actions row">
-    <button id="escape">Escape Combat</button>
-    <button id="testLuck">Test Your Luck</button>
-    <span id="potionStatus"></span>
-  </div>
-  <div class="layout">
-    <div class="column" id="adventureSheet">
+  <header class="title-row">
+    <div>
+      <h1>Fighting Fantasy Companion</h1>
+    </div>
+    <button id="newGame" class="primary">New Game</button>
+  </header>
+
+  <main class="layout">
+    <section class="column" id="adventureSheet">
       <h2>Adventure Sheet</h2>
       <div class="section">
-        <label>Skill <input type="number" id="skill" value="0"></label>
-        <label>Stamina <input type="number" id="stamina" value="0"></label>
-        <label>Luck <input type="number" id="luck" value="0"></label>
+        <label>Skill <span id="starting-skill" class="starting-chip">-</span>
+          <input type="number" id="skill" value="0" min="0" max="999" class="inline-number">
+        </label>
+        <label>Stamina <span id="starting-stamina" class="starting-chip">-</span>
+          <input type="number" id="stamina" value="0" min="0" max="999" class="inline-number">
+        </label>
+        <label>Luck <span id="starting-luck" class="starting-chip">-</span>
+          <input type="number" id="luck" value="0" min="0" max="999" class="inline-number">
+        </label>
+        <button id="testLuck" class="inline-action">Test Your Luck</button>
       </div>
+
       <div class="section">
         <label>Gold Pieces <textarea id="gold"></textarea></label>
         <label>Treasures <textarea id="treasure"></textarea></label>
         <label>Equipment <textarea id="equipment"></textarea></label>
         <label>Provisions <textarea id="provisions"></textarea></label>
-        <div class="row">
-          <label>Meals <input type="number" id="meals" value="10" min="0"></label>
+        <div class="row meals-row">
+          <label>Meals <input type="number" id="meals" value="10" min="0" max="999"></label>
           <button id="eatMeal">Eat Meal</button>
         </div>
+        <div class="potion-row">
+          <span id="potionStatus">No potion selected.</span>
+          <button id="usePotion">Use Potion</button>
+        </div>
       </div>
-    </div>
-    <div class="column" id="monsters">
+    </section>
+
+    <section class="column" id="monsters">
       <h2>Monster Encounters</h2>
+      <div class="split-actions">
+        <button id="addEnemy">Add Enemy</button>
+        <button id="escape">Escape Combat</button>
+      </div>
       <div id="monsterList"></div>
-    </div>
-  </div>
-  <div class="section">
-    <h3>Log</h3>
+    </section>
+  </main>
+
+  <section class="section log-section">
+    <h3>Adventure Log</h3>
     <div id="log" class="log"></div>
-  </div>
+  </section>
 
-  <script>
-    // Core player state is tracked separately from the inputs so we can enforce maxima and potion effects.
-    const player = {
-      skill: 0,
-      stamina: 0,
-      luck: 0,
-      maxSkill: 0,
-      maxStamina: 0,
-      maxLuck: 0,
-      meals: 10,
-      potion: null,
-      potionUsed: false
-    };
-
-    const enemies = Array.from({ length: 6 }, () => ({ skill: 0, stamina: 0 }));
-
-    const logEl = document.getElementById('log');
-    const potionStatus = document.getElementById('potionStatus');
-
-    const inputs = {
-      skill: document.getElementById('skill'),
-      stamina: document.getElementById('stamina'),
-      luck: document.getElementById('luck'),
-      meals: document.getElementById('meals')
-    };
-
-    // Utility helpers --------------------------------------------------------
-    const rollDice = (count) => Array.from({ length: count }, () => Math.floor(Math.random() * 6) + 1)
-      .reduce((sum, value) => sum + value, 0);
-
-    const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
-
-    const logMessage = (message) => {
-      const timestamp = new Date().toLocaleTimeString();
-      logEl.textContent = `[${timestamp}] ${message}\n${logEl.textContent}`.trim();
-    };
-
-    const syncPlayerInputs = () => {
-      inputs.skill.value = player.skill;
-      inputs.stamina.value = player.stamina;
-      inputs.luck.value = player.luck;
-      inputs.meals.value = player.meals;
-      renderPotionStatus();
-    };
-
-    const bindPlayerInputs = () => {
-      // Allow manual adjustments while keeping track of maxima for restoration effects.
-      inputs.skill.addEventListener('change', () => {
-        player.skill = parseInt(inputs.skill.value, 10) || 0;
-        player.maxSkill = Math.max(player.maxSkill, player.skill);
-      });
-      inputs.stamina.addEventListener('change', () => {
-        player.stamina = parseInt(inputs.stamina.value, 10) || 0;
-        player.maxStamina = Math.max(player.maxStamina, player.stamina);
-      });
-      inputs.luck.addEventListener('change', () => {
-        player.luck = parseInt(inputs.luck.value, 10) || 0;
-        player.maxLuck = Math.max(player.maxLuck, player.luck);
-      });
-      inputs.meals.addEventListener('change', () => {
-        player.meals = Math.max(0, parseInt(inputs.meals.value, 10) || 0);
-        syncPlayerInputs();
-      });
-    };
-
-    const renderPotionStatus = () => {
-      if (!player.potion) {
-        potionStatus.textContent = '';
-        return;
-      }
-      const used = player.potionUsed ? ' (used)' : '';
-      potionStatus.textContent = `Potion: ${player.potion}${used}`;
-    };
-
-    // Player interactions ----------------------------------------------------
-    const handleEatMeal = () => {
-      if (player.meals <= 0) {
-        alert('No meals left.');
-        return;
-      }
-      player.meals -= 1;
-      player.stamina = clamp(player.stamina + 4, 0, player.maxStamina);
-      syncPlayerInputs();
-      logMessage('You eat a meal and regain 4 Stamina.');
-    };
-
-    const escapeCombat = () => {
-      if (!confirm('Are you sure you want to run away? You will lose 2 Stamina.')) {
-        return;
-      }
-      player.stamina = clamp(player.stamina - 2, 0, player.maxStamina);
-      syncPlayerInputs();
-      logMessage('You escaped combat and lost 2 Stamina.');
-    };
-
-    // Luck handling ----------------------------------------------------------
-    const testLuck = (context) => {
-      if (player.luck <= 0) {
-        alert('You have no Luck remaining.');
-        return { outcome: 'none', lucky: false };
-      }
-      const roll = rollDice(2);
-      const isLucky = roll <= player.luck;
-      player.luck = Math.max(0, player.luck - 1);
-      syncPlayerInputs();
-      logMessage(`Testing Luck: rolled ${roll} vs Luck ${player.luck + 1}. ${isLucky ? 'Lucky!' : 'Unlucky.'}`);
-
-      if (!context) {
-        return { outcome: 'general', lucky: isLucky };
-      }
-
-      if (context.type === 'playerHitEnemy') {
-        const enemy = enemies[context.index];
-        const adjustment = isLucky ? -2 : 1;
-        enemy.stamina = Math.max(0, enemy.stamina + adjustment);
-        context.updateEnemyDisplay();
-        logMessage(isLucky ? 'Lucky strike! Enemy loses an additional 2 Stamina.' : 'Unlucky! Enemy regains 1 Stamina.');
-        if (enemy.stamina === 0) {
-          resetEnemy(context.index);
-        }
-      } else if (context.type === 'playerHitByEnemy') {
-        const adjustment = isLucky ? 1 : -1;
-        player.stamina = clamp(player.stamina + adjustment, 0, player.maxStamina);
-        syncPlayerInputs();
-        logMessage(isLucky ? 'Lucky! You reduce the damage by gaining 1 Stamina.' : 'Unlucky! You lose an additional 1 Stamina.');
-      }
-      return { outcome: context.type, lucky: isLucky };
-    };
-
-    // Combat handling -------------------------------------------------------
-    const performAttack = (index) => {
-      const enemySkillInput = document.getElementById(`enemy-skill-${index}`);
-      const enemyStaminaInput = document.getElementById(`enemy-stamina-${index}`);
-      const enemySkill = parseInt(enemySkillInput.value, 10) || 0;
-      const enemyStamina = parseInt(enemyStaminaInput.value, 10) || 0;
-
-      if (enemySkill <= 0 || enemyStamina <= 0) {
-        alert('Set enemy Skill and Stamina before attacking.');
-        return;
-      }
-
-      enemies[index].skill = enemySkill;
-      enemies[index].stamina = enemyStamina;
-
-      const monsterAttack = rollDice(2) + enemySkill;
-      const playerAttack = rollDice(2) + player.skill;
-
-      logMessage(`Combat roll vs Enemy ${index + 1}: Monster ${monsterAttack} vs Player ${playerAttack}.`);
-
-      if (monsterAttack === playerAttack) {
-        logMessage('Standoff! No damage dealt.');
-        return;
-      }
-
-      if (playerAttack > monsterAttack) {
-        enemies[index].stamina = Math.max(0, enemyStamina - 2);
-        logMessage('You hit the enemy for 2 damage.');
-        const wantsLuck = confirm('You wounded the enemy. Use Luck for extra damage?');
-        if (wantsLuck) {
-          testLuck({ type: 'playerHitEnemy', index, updateEnemyDisplay: () => updateEnemyInputs(index) });
-        }
-      } else {
-        player.stamina = clamp(player.stamina - 2, 0, player.maxStamina);
-        syncPlayerInputs();
-        logMessage('The enemy hits you for 2 damage.');
-        const wantsLuck = confirm('You took damage. Use Luck to reduce it?');
-        if (wantsLuck) {
-          testLuck({ type: 'playerHitByEnemy', index, updateEnemyDisplay: () => updateEnemyInputs(index) });
-        }
-      }
-
-      updateEnemyInputs(index);
-      if (enemies[index].stamina === 0) {
-        resetEnemy(index);
-        logMessage(`Enemy ${index + 1} is defeated.`);
-      }
-    };
-
-    const resetEnemy = (index) => {
-      enemies[index] = { skill: 0, stamina: 0 };
-      updateEnemyInputs(index);
-    };
-
-    const updateEnemyInputs = (index) => {
-      document.getElementById(`enemy-skill-${index}`).value = enemies[index].skill;
-      document.getElementById(`enemy-stamina-${index}`).value = enemies[index].stamina;
-    };
-
-    const buildMonsterBoxes = () => {
-      const container = document.getElementById('monsterList');
-      enemies.forEach((_, index) => {
-        const box = document.createElement('div');
-        box.className = 'enemy-box';
-        box.innerHTML = `
-          <strong>Enemy ${index + 1}</strong>
-          <label>Skill <input type="number" id="enemy-skill-${index}" value="0"></label>
-          <label>Stamina <input type="number" id="enemy-stamina-${index}" value="0"></label>
-          <button id="attack-${index}">Attack</button>
-        `;
-        container.appendChild(box);
-      });
-    };
-
-    // Game setup ------------------------------------------------------------
-    const applyPotion = () => {
-      if (!player.potion || player.potionUsed) {
-        alert('No potion available or it has already been used.');
-        return;
-      }
-      if (player.potion === 'Potion of Skill') {
-        player.skill = player.maxSkill;
-        logMessage('Potion of Skill used. Skill restored to max.');
-      } else if (player.potion === 'Potion of Strength') {
-        player.stamina = player.maxStamina;
-        logMessage('Potion of Strength used. Stamina restored to max.');
-      } else if (player.potion === 'Potion of Fortune') {
-        player.maxLuck += 1;
-        player.luck = player.maxLuck;
-        logMessage('Potion of Fortune used. Luck increased and restored.');
-      }
-      player.potionUsed = true;
-      syncPlayerInputs();
-    };
-
-    const selectPotion = () => {
-      const choice = prompt('Choose a potion: 1) Potion of Skill 2) Potion of Strength 3) Potion of Fortune');
-      if (choice === '1') {
-        player.potion = 'Potion of Skill';
-      } else if (choice === '2') {
-        player.potion = 'Potion of Strength';
-      } else if (choice === '3') {
-        player.potion = 'Potion of Fortune';
-      } else {
-        alert('Invalid choice. Please select a potion to begin.');
-        return selectPotion();
-      }
-      player.potionUsed = false;
-      logMessage(`${player.potion} selected.`);
-      renderPotionStatus();
-    };
-
-    const newGame = () => {
-      alert('Roll 1D6 + 6 for initial Skill.');
-      const skillRoll = rollDice(1) + 6;
-      alert(`You rolled ${skillRoll - 6} + 6 = ${skillRoll} Skill.`);
-
-      alert('Roll 2D6 + 12 for initial Stamina.');
-      const staminaRoll = rollDice(2) + 12;
-      alert(`You rolled ${staminaRoll - 12} + 12 = ${staminaRoll} Stamina.`);
-
-      alert('Roll 1D6 + 6 for initial Luck.');
-      const luckRoll = rollDice(1) + 6;
-      alert(`You rolled ${luckRoll - 6} + 6 = ${luckRoll} Luck.`);
-
-      player.skill = player.maxSkill = skillRoll;
-      player.stamina = player.maxStamina = staminaRoll;
-      player.luck = player.maxLuck = luckRoll;
-      player.meals = 10;
-      player.potion = null;
-      player.potionUsed = false;
-
-      document.getElementById('gold').value = '';
-      document.getElementById('treasure').value = '';
-      document.getElementById('equipment').value = '';
-      document.getElementById('provisions').value = '';
-
-      enemies.forEach((_, idx) => resetEnemy(idx));
-      syncPlayerInputs();
-      logMessage('New game started. Roll results applied.');
-      selectPotion();
-    };
-
-    // Wiring ----------------------------------------------------------------
-    document.getElementById('eatMeal').addEventListener('click', handleEatMeal);
-    document.getElementById('escape').addEventListener('click', escapeCombat);
-    document.getElementById('testLuck').addEventListener('click', () => {
-      const contextChoice = prompt('Test Luck context: 1) General 2) After hitting enemy 3) After taking damage');
-      if (contextChoice === '2') {
-        const index = parseInt(prompt('Which enemy number (1-6)?'), 10) - 1;
-        if (index >= 0 && index < enemies.length) {
-          testLuck({ type: 'playerHitEnemy', index, updateEnemyDisplay: () => updateEnemyInputs(index) });
-        } else {
-          alert('Invalid enemy number.');
-        }
-      } else if (contextChoice === '3') {
-        testLuck({ type: 'playerHitByEnemy', index: null, updateEnemyDisplay: () => {} });
-      } else {
-        testLuck();
-      }
-    });
-    document.getElementById('newGame').addEventListener('click', newGame);
-
-    buildMonsterBoxes();
-    bindPlayerInputs();
-    enemies.forEach((_, index) => {
-      document.getElementById(`attack-${index}`).addEventListener('click', () => performAttack(index));
-    });
-
-    // Simple control to apply the selected potion; added as a separate button for clarity.
-    const potionButton = document.createElement('button');
-    potionButton.textContent = 'Use Potion';
-    potionButton.addEventListener('click', applyPotion);
-    document.querySelector('.actions').appendChild(potionButton);
-
-    syncPlayerInputs();
-  </script>
+  <script src="app.js"></script>
 </body>
 </html>
