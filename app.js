@@ -25,8 +25,10 @@
 
   const logEl = document.getElementById('log');
   const logHistory = [];
-  const LOG_DISPLAY_LIMIT = 5;
   const LOG_HISTORY_LIMIT = 50;
+  const decisionLogEl = document.getElementById('decisionLog');
+  const decisionLogHistory = [];
+  const DECISION_LOG_HISTORY_LIMIT = 50;
   const loadFileInput = document.getElementById('loadFileInput');
   const potionStatus = document.getElementById('potionStatus');
   const usePotionButton = document.getElementById('usePotion');
@@ -97,11 +99,11 @@
     danger: '💀'
   };
 
-  const renderLog = () => {
-    logEl.innerHTML = '';
-    const entriesToShow = logHistory.slice(0, LOG_DISPLAY_LIMIT);
+  // Reusable renderer so adventure and decision logs stay consistent.
+  const renderLogList = ({ container, entries, getIcon, formatMessage }) => {
+    container.innerHTML = '';
 
-    entriesToShow.forEach((entry) => {
+    entries.forEach((entry) => {
       const row = document.createElement('div');
       row.className = 'log-entry';
       row.dataset.tone = entry.tone;
@@ -113,16 +115,27 @@
 
       const icon = document.createElement('span');
       icon.className = 'log-icon';
-      icon.textContent = logToneIcons[entry.tone] || logToneIcons.info;
+      const chosenIcon = getIcon ? getIcon(entry) : null;
+      icon.textContent = chosenIcon || logToneIcons[entry.tone] || logToneIcons.info;
 
       const body = document.createElement('span');
       body.className = 'log-body';
-      body.innerHTML = emphasizeLogTokens(entry.message);
+      const content = formatMessage ? formatMessage(entry) : entry.message;
+      body.innerHTML = emphasizeLogTokens(content || '');
 
       row.appendChild(timestamp);
       row.appendChild(icon);
       row.appendChild(body);
-      logEl.appendChild(row);
+      container.appendChild(row);
+    });
+  };
+
+  const renderLog = () => {
+    renderLogList({
+      container: logEl,
+      entries: logHistory,
+      getIcon: (entry) => logToneIcons[entry.tone] || logToneIcons.info,
+      formatMessage: (entry) => entry.message
     });
   };
 
@@ -133,6 +146,30 @@
       logHistory.length = LOG_HISTORY_LIMIT;
     }
     renderLog();
+  };
+
+  const addDecisionLogEntry = (pageNumber, decision) => {
+    const timestamp = new Date().toISOString();
+    decisionLogHistory.unshift({
+      pageNumber,
+      decision,
+      message: `Page ${pageNumber}: ${decision}`,
+      timestamp,
+      tone: 'info'
+    });
+    if (decisionLogHistory.length > DECISION_LOG_HISTORY_LIMIT) {
+      decisionLogHistory.length = DECISION_LOG_HISTORY_LIMIT;
+    }
+    renderDecisionLog();
+  };
+
+  const renderDecisionLog = () => {
+    renderLogList({
+      container: decisionLogEl,
+      entries: decisionLogHistory,
+      getIcon: () => '🧭',
+      formatMessage: (entry) => entry.message || `Page ${entry.pageNumber || '—'} — ${entry.decision}`
+    });
   };
 
   const updateInitialStatsDisplay = () => {
@@ -169,6 +206,25 @@
       });
     }
     renderLog();
+  };
+
+  const applyDecisionLogState = (savedDecisions = []) => {
+    decisionLogHistory.length = 0;
+    if (Array.isArray(savedDecisions)) {
+      savedDecisions.slice(0, DECISION_LOG_HISTORY_LIMIT).forEach((entry) => {
+        if (entry && typeof entry.decision === 'string') {
+          const safePage = parseNumber(entry.pageNumber, '', 1, 9999);
+          decisionLogHistory.push({
+            pageNumber: safePage,
+            decision: entry.decision,
+            message: entry.message || (safePage ? `Page ${safePage}: ${entry.decision}` : entry.decision),
+            timestamp: entry.timestamp || new Date().toISOString(),
+            tone: entry.tone || 'info'
+          });
+        }
+      });
+    }
+    renderDecisionLog();
   };
 
   const applyEnemiesState = (savedEnemies = []) => {
@@ -225,14 +281,15 @@
   };
 
   const buildSavePayload = (pageNumberLabel) => ({
-    version: 1,
+    version: 2,
     savedAt: new Date().toISOString(),
     pageNumber: pageNumberLabel,
     player: { ...player },
     initialStats: { ...initialStats },
     notes: getNotesState(),
     enemies: enemies.map((enemy) => ({ ...enemy })),
-    log: logHistory.map((entry) => ({ ...entry }))
+    log: logHistory.map((entry) => ({ ...entry })),
+    decisionLog: decisionLogHistory.map((entry) => ({ ...entry }))
   });
 
   // Produce a filesystem-safe timestamp that is still easy to read in save filenames.
@@ -308,12 +365,86 @@
     });
   };
 
+  const showDecisionDialog = () => {
+    const { modal, close } = createModal(
+      'Add Decision',
+      'Record the page number and the choice you made for later reference.',
+      { compact: true }
+    );
+
+    const form = document.createElement('div');
+    form.className = 'modal-form';
+
+    const pageField = document.createElement('div');
+    pageField.className = 'modal-field';
+    const pageLabel = document.createElement('label');
+    pageLabel.textContent = 'Page Number';
+    pageLabel.htmlFor = 'decision-page-number';
+    const pageInput = document.createElement('input');
+    pageInput.id = 'decision-page-number';
+    pageInput.type = 'number';
+    pageInput.min = '1';
+    pageInput.placeholder = 'e.g. 120';
+    pageField.appendChild(pageLabel);
+    pageField.appendChild(pageInput);
+
+    const decisionField = document.createElement('div');
+    decisionField.className = 'modal-field';
+    const decisionLabel = document.createElement('label');
+    decisionLabel.textContent = 'Decision';
+    decisionLabel.htmlFor = 'decision-text';
+    const decisionInput = document.createElement('input');
+    decisionInput.id = 'decision-text';
+    decisionInput.type = 'text';
+    decisionInput.placeholder = 'e.g. Took the west tunnel';
+    decisionField.appendChild(decisionLabel);
+    decisionField.appendChild(decisionInput);
+
+    form.appendChild(pageField);
+    form.appendChild(decisionField);
+
+    const actions = document.createElement('div');
+    actions.className = 'modal-actions';
+    const cancel = document.createElement('button');
+    cancel.className = 'btn btn-negative';
+    cancel.textContent = 'Cancel';
+    const addButton = document.createElement('button');
+    addButton.className = 'btn btn-positive';
+    addButton.textContent = 'Save Decision';
+
+    actions.appendChild(cancel);
+    actions.appendChild(addButton);
+    form.appendChild(actions);
+    modal.appendChild(form);
+
+    cancel.addEventListener('click', close);
+    addButton.addEventListener('click', () => {
+      const pageValue = parseNumber(pageInput.value, NaN, 1, 9999);
+      const decisionValue = decisionInput.value.trim();
+
+      if (!Number.isFinite(pageValue)) {
+        alert('Please provide the page number for this decision.');
+        return;
+      }
+
+      if (!decisionValue) {
+        alert('Please describe the decision.');
+        return;
+      }
+
+      addDecisionLogEntry(pageValue, decisionValue);
+      logMessage(`Decision noted for Page ${pageValue}: ${decisionValue}`, 'info');
+      close();
+    });
+  };
+
   // Restore core data in a predictable order so fields sync correctly.
   const applySaveData = (data) => {
     applyPlayerState(data.player, data.initialStats);
     applyNotesState(data.notes);
     applyEnemiesState(data.enemies);
     applyLogState(Array.isArray(data.log) ? data.log : []);
+    applyDecisionLogState(Array.isArray(data.decisionLog) ? data.decisionLog : []);
     logMessage(`Save loaded${data.pageNumber ? ` from Page ${data.pageNumber}` : ''}.`, 'success');
   };
 
@@ -587,6 +718,48 @@
 
     return { overlay, modal, close };
   };
+
+  // Prompt the player to decide on spending Luck after landing a hit.
+  // Returning a promise keeps combat flow readable while allowing the animation
+  // to finish before the decision is made.
+  const promptLuckAfterPlayerHit = (enemyLabel) => new Promise((resolve) => {
+    const { overlay, modal, close } = createModal(
+      'Use Luck to press the attack?',
+      `You wounded Enemy ${enemyLabel}. Spend Luck to attempt extra damage?`,
+      { compact: true }
+    );
+
+    let settled = false;
+    const finalize = (wantsLuck) => {
+      if (settled) return;
+      settled = true;
+      close();
+      resolve(wantsLuck);
+    };
+
+    overlay.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        finalize(false);
+      }
+    });
+
+    const actions = document.createElement('div');
+    actions.className = 'modal-actions';
+
+    const skipButton = document.createElement('button');
+    skipButton.className = 'btn btn-secondary';
+    skipButton.textContent = 'Continue';
+    skipButton.addEventListener('click', () => finalize(false));
+
+    const luckButton = document.createElement('button');
+    luckButton.className = 'btn btn-positive';
+    luckButton.textContent = 'Use Luck';
+    luckButton.addEventListener('click', () => finalize(true));
+
+    actions.appendChild(skipButton);
+    actions.appendChild(luckButton);
+    modal.appendChild(actions);
+  });
 
   const syncPlayerInputs = () => {
     inputs.skill.value = player.skill;
@@ -1101,7 +1274,7 @@
   };
 
   // Combat handling -------------------------------------------------------
-  function performAttack(index) {
+  async function performAttack(index) {
     const enemy = enemies[index];
     if (!enemy) {
       alert('Enemy not found.');
@@ -1131,7 +1304,7 @@
       defeated = enemy.stamina === 0;
 
       if (!defeated) {
-        const wantsLuck = confirm('You wounded the enemy. Use Luck for extra damage?');
+        const wantsLuck = await promptLuckAfterPlayerHit(index + 1);
         if (wantsLuck) {
           testLuck({ type: 'playerHitEnemy', index });
           defeated = !enemies[index];
@@ -1153,10 +1326,16 @@
       }
     }
 
+    const enemyRemovedByLuck = !enemies.includes(enemy);
+
     if (defeated) {
       logMessage(`Enemy ${index + 1} is defeated.`, 'success');
       showActionVisual('defeatEnemy');
-      removeEnemy(index);
+      if (enemies.includes(enemy)) {
+        removeEnemy(index);
+      }
+    } else if (enemyRemovedByLuck) {
+      showActionVisual('defeatEnemy');
     } else {
       renderEnemies();
     }
@@ -1234,6 +1413,8 @@
         addEnemy();
         addEnemy();
         addEnemy();
+        decisionLogHistory.length = 0;
+        renderDecisionLog();
         syncPlayerInputs();
         logMessage('New game started. Roll results applied.', 'success');
         renderPotionStatus();
@@ -1264,6 +1445,7 @@
   loadFileInput.addEventListener('change', handleLoadFile);
 
   document.getElementById('addEnemy').addEventListener('click', () => addEnemy());
+  document.getElementById('addDecision').addEventListener('click', showDecisionDialog);
   bindPlayerInputs();
   addEnemy();
   addEnemy();
@@ -1272,4 +1454,6 @@
   updateInitialStatsDisplay();
   renderPotionStatus();
   syncPlayerInputs();
+  renderLog();
+  renderDecisionLog();
 })();
