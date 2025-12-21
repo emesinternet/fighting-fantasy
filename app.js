@@ -326,7 +326,6 @@
     const { modal, close } = createModal('Test Your Luck', 'Choose when you want to apply Luck.');
     const grid = document.createElement('div');
     grid.className = 'grid-three';
-    let selected = null;
 
     const enemySelect = document.createElement('select');
     enemySelect.style.width = '100%';
@@ -352,19 +351,40 @@
         key: 'general',
         title: 'General Test',
         description: 'Roll Luck for a standard check with no combat adjustments.',
-        content: null
-      },
-      {
-        key: 'afterHit',
-        title: 'After Hitting an Enemy',
-        description: 'Try to amplify damage you just dealt.',
-        content: enemySelect
+        content: null,
+        handler: () => {
+          testLuck();
+          return true;
+        }
       },
       {
         key: 'afterDamage',
         title: 'After Taking Damage',
         description: 'Attempt to soften or worsen damage you received.',
-        content: null
+        content: null,
+        handler: () => {
+          testLuck({ type: 'playerHitByEnemy' });
+          return true;
+        }
+      },
+      {
+        key: 'afterHit',
+        title: 'After Hitting an Enemy',
+        description: 'Try to amplify damage you just dealt.',
+        content: enemySelect,
+        handler: () => {
+          if (!enemies.length || enemySelect.disabled) {
+            alert('No enemy is available for this Luck test.');
+            return false;
+          }
+          const targetIndex = parseInt(enemySelect.value, 10);
+          if (Number.isNaN(targetIndex)) {
+            alert('Select an enemy to continue.');
+            return false;
+          }
+          testLuck({ type: 'playerHitEnemy', index: targetIndex });
+          return true;
+        }
       }
     ];
 
@@ -389,15 +409,19 @@
       }
 
       const chooseButton = document.createElement('button');
-      chooseButton.textContent = 'Select';
+      chooseButton.textContent = 'Roll Luck';
       chooseButton.addEventListener('click', () => {
-        selected = option.key;
-        cards.forEach((c) => c.card.classList.remove('selected'));
-        card.classList.add('selected');
+        const handled = option.handler();
+        if (handled !== false) {
+          close();
+        }
       });
+      if (option.key === 'afterHit' && enemySelect.disabled) {
+        chooseButton.disabled = true;
+      }
       card.appendChild(chooseButton);
 
-      return { card, option };
+      return { card };
     });
 
     cards.forEach(({ card }) => grid.appendChild(card));
@@ -406,37 +430,10 @@
     const actions = document.createElement('div');
     actions.className = 'modal-actions';
     const cancelButton = document.createElement('button');
-    cancelButton.textContent = 'Cancel';
-    const confirmButton = document.createElement('button');
-    confirmButton.textContent = 'Roll Luck';
-
+    cancelButton.textContent = 'Close';
     cancelButton.addEventListener('click', close);
-    confirmButton.addEventListener('click', () => {
-      if (!selected) {
-        alert('Pick how you want to use your Luck.');
-        return;
-      }
-
-      if (selected === 'afterHit') {
-        if (enemies.length === 0) {
-          alert('Add an enemy before applying Luck to an attack.');
-          return;
-        }
-        close();
-        testLuck({ type: 'playerHitEnemy', index: parseInt(enemySelect.value, 10) || 0 });
-        return;
-      }
-
-      close();
-      if (selected === 'afterDamage') {
-        testLuck({ type: 'playerHitByEnemy', index: null });
-      } else {
-        testLuck();
-      }
-    });
 
     actions.appendChild(cancelButton);
-    actions.appendChild(confirmButton);
     modal.appendChild(actions);
   };
 
@@ -474,7 +471,11 @@
       title.textContent = `Enemy ${index + 1}`;
       box.appendChild(title);
 
+      const stats = document.createElement('div');
+      stats.className = 'enemy-stats';
+
       const skillLabel = document.createElement('label');
+      skillLabel.className = 'inline-label';
       skillLabel.textContent = 'Skill ';
       const skillInput = document.createElement('input');
       skillInput.type = 'number';
@@ -487,9 +488,10 @@
         skillInput.value = nextSkill;
       });
       skillLabel.appendChild(skillInput);
-      box.appendChild(skillLabel);
+      stats.appendChild(skillLabel);
 
       const staminaLabel = document.createElement('label');
+      staminaLabel.className = 'inline-label';
       staminaLabel.textContent = 'Stamina ';
       const staminaInput = document.createElement('input');
       staminaInput.type = 'number';
@@ -502,7 +504,9 @@
         staminaInput.value = nextStamina;
       });
       staminaLabel.appendChild(staminaInput);
-      box.appendChild(staminaLabel);
+      stats.appendChild(staminaLabel);
+
+      box.appendChild(stats);
 
       const actions = document.createElement('div');
       actions.className = 'enemy-actions';
