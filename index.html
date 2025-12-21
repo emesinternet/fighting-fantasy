@@ -18,6 +18,7 @@
       justify-content: space-between;
       gap: 12px;
       flex-wrap: wrap;
+      margin-bottom: 8px;
     }
     .layout {
       display: flex;
@@ -46,9 +47,6 @@
       width: 100%;
       min-height: 40px;
     }
-    .actions {
-      margin: 12px 0;
-    }
     .row {
       display: flex;
       align-items: center;
@@ -59,8 +57,43 @@
       border: 1px solid #ccc;
       padding: 8px;
       min-height: 60px;
-      white-space: pre-line;
+      white-space: normal;
       background: #f9f9f9;
+      font-size: 0.9rem;
+    }
+    .log-entry {
+      display: flex;
+      gap: 8px;
+      padding: 2px 0;
+      align-items: flex-start;
+    }
+    .log-timestamp {
+      font-weight: 700;
+      color: #1d4ed8;
+      min-width: 78px;
+    }
+    .log-body {
+      flex: 1;
+      color: #111;
+      line-height: 1.35;
+    }
+    .log-key {
+      font-weight: 700;
+      color: #b45309;
+    }
+    .log-number {
+      font-weight: 700;
+      color: #047857;
+    }
+    .inline-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 8px 0 12px;
+    }
+    .inline-action {
+      align-self: flex-start;
+      margin-top: 6px;
     }
     .potion-row {
       display: flex;
@@ -151,13 +184,9 @@
   </style>
 </head>
 <body>
-  <h1 class="title-row">
-    <span>Fighting Fantasy Companion</span>
-  </h1>
-  <button id="newGame">New Game</button>
-  <div class="actions row">
-    <button id="escape">Escape Combat</button>
-    <button id="testLuck">Test Your Luck</button>
+  <div class="title-row">
+    <h1>Fighting Fantasy Companion</h1>
+    <button id="newGame">New Game</button>
   </div>
   <div class="layout">
     <div class="column" id="adventureSheet">
@@ -166,6 +195,7 @@
         <label>Skill <span id="starting-skill" class="starting-chip">Start: -</span> <input type="number" id="skill" value="0"></label>
         <label>Stamina <span id="starting-stamina" class="starting-chip">Start: -</span> <input type="number" id="stamina" value="0"></label>
         <label>Luck <span id="starting-luck" class="starting-chip">Start: -</span> <input type="number" id="luck" value="0"></label>
+        <button id="testLuck" class="inline-action">Test Your Luck</button>
       </div>
       <div class="section">
         <label>Gold Pieces <textarea id="gold"></textarea></label>
@@ -186,6 +216,9 @@
       <div class="section-header">
         <h2>Monster Encounters</h2>
         <button id="addEnemy">Add Enemy</button>
+      </div>
+      <div class="inline-actions">
+        <button id="escape">Escape Combat</button>
       </div>
       <div id="monsterList"></div>
     </div>
@@ -241,9 +274,42 @@
 
     const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
+    // Format log entries with safe markup and lightweight emphasis to make combat updates easy to scan.
+    const escapeHtml = (text) => text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+
+    const emphasizeLogTokens = (message) => {
+      let safe = escapeHtml(message);
+      safe = safe.replace(/\b(\d+)\b/g, '<span class="log-number">$1</span>');
+      safe = safe.replace(/\b(Lucky!?|Unlucky!?|Skill|Stamina|Luck|damage|defeated|restored|increased|escape|escaped|potion)\b/gi,
+        '<span class="log-key">$1</span>');
+      return safe;
+    };
+
     const logMessage = (message) => {
-      const timestamp = new Date().toLocaleTimeString();
-      logEl.textContent = `[${timestamp}] ${message}\n${logEl.textContent}`.trim();
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+
+      const timestamp = document.createElement('span');
+      timestamp.className = 'log-timestamp';
+      timestamp.textContent = `[${new Date().toLocaleTimeString()}]`;
+
+      const body = document.createElement('span');
+      body.className = 'log-body';
+      body.innerHTML = emphasizeLogTokens(message);
+
+      entry.appendChild(timestamp);
+      entry.appendChild(body);
+
+      if (logEl.firstChild) {
+        logEl.insertBefore(entry, logEl.firstChild);
+      } else {
+        logEl.appendChild(entry);
+      }
     };
 
     const updateInitialStatsDisplay = () => {
