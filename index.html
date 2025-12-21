@@ -10,68 +10,70 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <header class="title-row">
-    <div>
-      <h1>Fighting Fantasy Companion</h1>
-    </div>
-    <div class="title-actions">
-      <button id="saveGame" class="btn">Save</button>
-      <button id="loadGame" class="btn">Load</button>
-      <button id="newGame" class="btn btn-positive">New Game</button>
-      <button id="gameOver" class="btn btn-negative">Game Over</button>
-    </div>
-  </header>
-
-  <input type="file" id="loadFileInput" accept="application/json" aria-label="Load saved game" hidden>
-
-  <main class="layout">
-    <section class="column" id="adventureSheet">
-      <h2>Adventure Sheet</h2>
-      <div class="section stat-grid">
-        <label>Skill <span id="starting-skill" class="starting-chip">-</span>
-          <input type="number" id="skill" value="0" min="0" max="999" class="inline-number">
-        </label>
-        <label>Stamina <span id="starting-stamina" class="starting-chip">-</span>
-          <input type="number" id="stamina" value="0" min="0" max="999" class="inline-number">
-        </label>
-        <label>Luck <span id="starting-luck" class="starting-chip">-</span>
-          <input type="number" id="luck" value="0" min="0" max="999" class="inline-number">
-        </label>
-        <button id="testLuck" class="btn btn-positive inline-action align-end">Test Your Luck</button>
+  <div class="content-shell">
+    <header class="title-row">
+      <div>
+        <h1>Fighting Fantasy Companion</h1>
       </div>
-
-      <div class="section">
-        <div class="notes-grid">
-          <label>Gold Pieces <textarea id="gold"></textarea></label>
-          <label>Treasures <textarea id="treasure"></textarea></label>
-          <label>Equipment <textarea id="equipment"></textarea></label>
-          <label>Provisions <textarea id="provisions"></textarea></label>
-        </div>
-        <div class="row meals-row">
-          <label class="inline-label">Meals <input type="number" id="meals" value="10" min="0" max="999"></label>
-          <button id="eatMeal" class="btn btn-positive align-end">Eat Meal</button>
-        </div>
-        <div class="potion-row">
-          <label class="inline-label">Potion <span id="potionStatus" class="potion-status">No potion selected.</span></label>
-          <button id="usePotion" class="btn btn-positive align-end">Use Potion</button>
-        </div>
+      <div class="title-actions">
+        <button id="saveGame" class="btn">Save</button>
+        <button id="loadGame" class="btn">Load</button>
+        <button id="newGame" class="btn btn-positive">New Game</button>
+        <button id="gameOver" class="btn btn-negative">Game Over</button>
       </div>
+    </header>
+
+    <input type="file" id="loadFileInput" accept="application/json" aria-label="Load saved game" hidden>
+
+    <main class="layout">
+      <section class="column" id="adventureSheet">
+        <h2>Adventure Sheet</h2>
+        <div class="section stat-grid">
+          <label>Skill <span id="starting-skill" class="starting-chip">-</span>
+            <input type="number" id="skill" value="0" min="0" max="999" class="inline-number">
+          </label>
+          <label>Stamina <span id="starting-stamina" class="starting-chip">-</span>
+            <input type="number" id="stamina" value="0" min="0" max="999" class="inline-number">
+          </label>
+          <label>Luck <span id="starting-luck" class="starting-chip">-</span>
+            <input type="number" id="luck" value="0" min="0" max="999" class="inline-number">
+          </label>
+          <button id="testLuck" class="btn btn-positive inline-action align-end">Test Your Luck</button>
+        </div>
+
+        <div class="section">
+          <div class="notes-grid">
+            <label>Gold Pieces <textarea id="gold"></textarea></label>
+            <label>Treasures <textarea id="treasure"></textarea></label>
+            <label>Equipment <textarea id="equipment"></textarea></label>
+            <label>Provisions <textarea id="provisions"></textarea></label>
+          </div>
+          <div class="row meals-row">
+            <label class="inline-label">Meals <input type="number" id="meals" value="10" min="0" max="999"></label>
+            <button id="eatMeal" class="btn btn-positive align-end">Eat Meal</button>
+          </div>
+          <div class="potion-row">
+            <label class="inline-label">Potion <span id="potionStatus" class="potion-status">No potion selected.</span></label>
+            <button id="usePotion" class="btn btn-positive align-end">Use Potion</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="column" id="monsters">
+        <h2>Monster Encounters</h2>
+        <div class="split-actions">
+          <button id="addEnemy" class="btn btn-positive">Add Enemy</button>
+          <button id="escape" class="btn btn-negative">Escape Combat</button>
+        </div>
+        <div id="monsterList"></div>
+      </section>
+    </main>
+
+    <section class="section log-section">
+      <h3>Adventure Log</h3>
+      <div id="log" class="log"></div>
     </section>
-
-    <section class="column" id="monsters">
-      <h2>Monster Encounters</h2>
-      <div class="split-actions">
-        <button id="addEnemy" class="btn btn-positive">Add Enemy</button>
-        <button id="escape" class="btn btn-negative">Escape Combat</button>
-      </div>
-      <div id="monsterList"></div>
-    </section>
-  </main>
-
-  <section class="section log-section">
-    <h3>Adventure Log</h3>
-    <div id="log" class="log"></div>
-  </section>
+  </div>
 
   <!-- Overlay for action animations: image fades/slides in, then text, holds, and fades away with the backdrop. -->
   <div id="action-overlay" class="animation-overlay" aria-hidden="true">

@@ -14,4 +14,5 @@ Single-page web sheet for Fighting Fantasy gamebooks. Track player stats, manage
 
 ## Development
 - All logic lives in `app.js` with styles in `styles.css` and markup in `index.html`.
+- Main controls and the adventure log stay centered within a 1000px column for easier reading on wide screens.
 - Follow `AGENTS.md` for behavior expectations and workflow reminders.
