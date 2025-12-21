@@ -22,6 +22,8 @@
   };
 
   let enemies = [];
+  // Preserve stable enemy identifiers so names do not shift when the list changes.
+  let nextEnemyId = 1;
 
   const logEl = document.getElementById('log');
   const logHistory = [];
@@ -63,6 +65,14 @@
   const rollDice = (count) => Array.from({ length: count }, () => Math.floor(Math.random() * 6) + 1)
     .reduce((sum, value) => sum + value, 0);
 
+  // General-purpose dice helpers so future rolls can cover non-standard die sizes.
+  const rollDieWithSides = (sides) => Math.floor(Math.random() * sides) + 1;
+  const rollCustomDice = (count, sides) => {
+    const values = Array.from({ length: count }, () => rollDieWithSides(sides));
+    const total = values.reduce((sum, value) => sum + value, 0);
+    return { total, values };
+  };
+
   const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
   // Keep numeric parsing consistent when restoring a save file or clamping manual input.
@@ -72,6 +82,20 @@
       return clamp(parsed, min, max);
     }
     return fallback;
+  };
+
+  // Keep enemy naming consistent for logs, defaulting to a stable identifier if a custom name is missing.
+  const formatEnemyName = (enemy) => {
+    if (!enemy) {
+      return 'Enemy';
+    }
+    if (enemy.name) {
+      return enemy.name;
+    }
+    if (Number.isFinite(enemy.id)) {
+      return `Enemy ${enemy.id}`;
+    }
+    return 'Enemy';
   };
 
   // Format log entries with safe markup and lightweight emphasis to make combat updates easy to scan.
@@ -232,14 +256,30 @@
   };
 
   const applyEnemiesState = (savedEnemies = []) => {
+    let restored = [];
+    let maxId = 0;
+    nextEnemyId = 1;
+
     if (Array.isArray(savedEnemies)) {
-      enemies = savedEnemies.map((enemy) => ({
-        skill: parseNumber(enemy.skill, 0, 0, 999),
-        stamina: parseNumber(enemy.stamina, 0, 0, 999)
-      }));
-    } else {
-      enemies = [];
+      restored = savedEnemies.map((enemy) => {
+        const safeId = Number.isFinite(enemy?.id) ? enemy.id : nextEnemyId++;
+        const safeName = typeof enemy?.name === 'string' && enemy.name.trim()
+          ? enemy.name
+          : `Enemy ${safeId}`;
+
+        maxId = Math.max(maxId, safeId);
+
+        return {
+          id: safeId,
+          name: safeName,
+          skill: parseNumber(enemy.skill, 0, 0, 999),
+          stamina: parseNumber(enemy.stamina, 0, 0, 999)
+        };
+      });
     }
+
+    enemies = restored;
+    nextEnemyId = Math.max(maxId + 1, nextEnemyId);
     renderEnemies();
   };
 
@@ -727,7 +767,7 @@
   const promptLuckAfterPlayerHit = (enemyLabel) => new Promise((resolve) => {
     const { overlay, modal, close } = createModal(
       'Use Luck to press the attack?',
-      `You wounded Enemy ${enemyLabel}. Spend Luck to attempt extra damage?`,
+      `You wounded ${enemyLabel}. Spend Luck to attempt extra damage?`,
       { compact: true }
     );
 
@@ -976,6 +1016,69 @@
     modal.appendChild(actions);
   };
 
+  // General-purpose dice roller for ad-hoc checks outside of combat or Luck.
+  const generalRollOptions = [
+    { value: '1d6', label: '1D6', roll: () => rollCustomDice(1, 6) },
+    { value: '1d4', label: '1D4', roll: () => rollCustomDice(1, 4) },
+    { value: '1d2', label: '1D2', roll: () => rollCustomDice(1, 2) },
+    { value: '2d6', label: '2D6', roll: () => rollCustomDice(2, 6) },
+    { value: 'percent', label: 'Percent Die', roll: () => rollCustomDice(1, 100) }
+  ];
+
+  const logGeneralRollResult = (label, rollResult) => {
+    const detail = rollResult.values.length > 1
+      ? `${rollResult.values.join(' + ')} = ${rollResult.total}`
+      : `${rollResult.total}`;
+    logMessage(`Rolled ${label}: ${detail}.`, 'info');
+  };
+
+  const showGeneralRollDialog = () => {
+    const { modal, close } = createModal('Roll Dice', 'Choose dice for miscellaneous rolls.', { compact: true });
+
+    const field = document.createElement('div');
+    field.className = 'modal-field';
+
+    const label = document.createElement('label');
+    label.htmlFor = 'general-roll-select';
+    label.textContent = 'Dice to roll';
+
+    const select = document.createElement('select');
+    select.id = 'general-roll-select';
+    generalRollOptions.forEach((option) => {
+      const opt = document.createElement('option');
+      opt.value = option.value;
+      opt.textContent = option.label;
+      select.appendChild(opt);
+    });
+    select.value = '1d6';
+
+    field.appendChild(label);
+    field.appendChild(select);
+    modal.appendChild(field);
+
+    const actions = document.createElement('div');
+    actions.className = 'modal-actions';
+
+    const cancel = document.createElement('button');
+    cancel.className = 'btn btn-negative';
+    cancel.textContent = 'Cancel';
+    cancel.addEventListener('click', close);
+
+    const rollButton = document.createElement('button');
+    rollButton.className = 'btn btn-positive';
+    rollButton.textContent = 'Roll';
+    rollButton.addEventListener('click', () => {
+      const choice = generalRollOptions.find((option) => option.value === select.value) || generalRollOptions[0];
+      const result = choice.roll();
+      logGeneralRollResult(choice.label, result);
+      close();
+    });
+
+    actions.appendChild(cancel);
+    actions.appendChild(rollButton);
+    modal.appendChild(actions);
+  };
+
   // Offer context-aware Luck testing with clear options and enemy targeting.
   const showLuckDialog = () => {
     const { modal, close } = createModal('Test Your Luck', 'Choose when you want to apply Luck.');
@@ -996,7 +1099,8 @@
       enemies.forEach((enemy, index) => {
         const option = document.createElement('option');
         option.value = index;
-        option.textContent = `Enemy ${index + 1} (Skill ${enemy.skill || 0}, Stamina ${enemy.stamina || 0})`;
+        const enemyLabel = formatEnemyName(enemy);
+        option.textContent = `${enemyLabel} (Skill ${enemy.skill || 0}, Stamina ${enemy.stamina || 0})`;
         enemySelect.appendChild(option);
       });
     }
@@ -1126,13 +1230,24 @@
     const container = document.getElementById('monsterList');
     container.innerHTML = '';
 
+    if (!enemies.length) {
+      const empty = document.createElement('p');
+      empty.className = 'empty-enemies';
+      empty.textContent = 'No enemies yet. Add foes as you encounter them.';
+      container.appendChild(empty);
+      return;
+    }
+
     enemies.forEach((enemy, index) => {
       const box = document.createElement('div');
       box.className = 'enemy-box';
 
+      const header = document.createElement('div');
+      header.className = 'enemy-header';
+
       const title = document.createElement('strong');
-      title.textContent = `Enemy ${index + 1}`;
-      box.appendChild(title);
+      title.textContent = formatEnemyName(enemy);
+      header.appendChild(title);
 
       const stats = document.createElement('div');
       stats.className = 'enemy-stats';
@@ -1169,7 +1284,8 @@
       staminaLabel.appendChild(staminaInput);
       stats.appendChild(staminaLabel);
 
-      box.appendChild(stats);
+      header.appendChild(stats);
+      box.appendChild(header);
 
       const actions = document.createElement('div');
       actions.className = 'enemy-actions';
@@ -1192,7 +1308,17 @@
   }
 
   function addEnemy(initial = { skill: 0, stamina: 0 }) {
-    enemies.push({ ...initial });
+    const safeId = Number.isFinite(initial?.id) ? initial.id : nextEnemyId++;
+    nextEnemyId = Math.max(nextEnemyId, safeId + 1);
+
+    const enemy = {
+      id: safeId,
+      name: typeof initial?.name === 'string' && initial.name.trim() ? initial.name : `Enemy ${safeId}`,
+      skill: parseNumber(initial.skill, 0, 0, 999),
+      stamina: parseNumber(initial.stamina, 0, 0, 999)
+    };
+
+    enemies.push(enemy);
     renderEnemies();
   }
 
@@ -1247,15 +1373,16 @@
 
       const adjustment = isLucky ? -2 : 1;
       enemy.stamina = Math.max(0, enemy.stamina + adjustment);
+      const enemyLabel = formatEnemyName(enemy);
       logMessage(
         isLucky
-          ? 'Lucky strike! Enemy loses an additional 2 Stamina.'
-          : 'Unlucky! Enemy regains 1 Stamina.',
+          ? `Lucky strike! ${enemyLabel} loses an additional 2 Stamina.`
+          : `Unlucky! ${enemyLabel} regains 1 Stamina.`,
         isLucky ? 'success' : 'danger'
       );
 
       if (enemy.stamina === 0) {
-        logMessage(`Enemy ${context.index + 1} is defeated.`, 'success');
+        logMessage(`${enemyLabel} is defeated.`, 'success');
         removeEnemy(context.index);
       } else {
         renderEnemies();
@@ -1291,7 +1418,8 @@
     const monsterAttack = rollDice(2) + enemy.skill;
     const playerAttack = rollDice(2) + player.skill;
 
-    logMessage(`Combat vs Enemy ${index + 1}: Monster ${monsterAttack} vs Player ${playerAttack}.`, 'action');
+    const enemyLabel = formatEnemyName(enemy);
+    logMessage(`Combat vs ${enemyLabel}: Monster ${monsterAttack} vs Player ${playerAttack}.`, 'action');
 
     if (monsterAttack === playerAttack) {
       logMessage('Standoff! No damage dealt.', 'info');
@@ -1301,12 +1429,12 @@
     let defeated = false;
     if (playerAttack > monsterAttack) {
       enemy.stamina = Math.max(0, enemy.stamina - 2);
-      logMessage('You hit the enemy for 2 damage.', 'success');
+      logMessage(`You hit ${enemyLabel} for 2 damage.`, 'success');
       showActionVisual('playerHitEnemy');
       defeated = enemy.stamina === 0;
 
       if (!defeated) {
-        const wantsLuck = await promptLuckAfterPlayerHit(index + 1);
+        const wantsLuck = await promptLuckAfterPlayerHit(enemyLabel);
         if (wantsLuck) {
           testLuck({ type: 'playerHitEnemy', index });
           defeated = !enemies[index];
@@ -1315,7 +1443,7 @@
     } else {
       player.stamina = clamp(player.stamina - 2, 0, player.maxStamina);
       syncPlayerInputs();
-      logMessage('The enemy hits you for 2 damage.', 'danger');
+      logMessage(`${enemyLabel} hits you for 2 damage.`, 'danger');
       const wantsLuck = confirm('You took damage. Use Luck to reduce it?');
       if (wantsLuck) {
         testLuck({ type: 'playerHitByEnemy', index });
@@ -1331,7 +1459,7 @@
     const enemyRemovedByLuck = !enemies.includes(enemy);
 
     if (defeated) {
-      logMessage(`Enemy ${index + 1} is defeated.`, 'success');
+      logMessage(`${enemyLabel} is defeated.`, 'success');
       showActionVisual('defeatEnemy');
       if (enemies.includes(enemy)) {
         removeEnemy(index);
@@ -1412,9 +1540,8 @@
         document.getElementById('provisions').value = '';
 
         enemies = [];
-        addEnemy();
-        addEnemy();
-        addEnemy();
+        nextEnemyId = 1;
+        renderEnemies();
         decisionLogHistory.length = 0;
         renderDecisionLog();
         syncPlayerInputs();
@@ -1439,6 +1566,7 @@
   document.getElementById('eatMeal').addEventListener('click', handleEatMeal);
   document.getElementById('escape').addEventListener('click', escapeCombat);
   document.getElementById('testLuck').addEventListener('click', showLuckDialog);
+  document.getElementById('generalRoll').addEventListener('click', showGeneralRollDialog);
   document.getElementById('saveGame').addEventListener('click', showSaveDialog);
   document.getElementById('loadGame').addEventListener('click', () => loadFileInput.click());
   document.getElementById('newGame').addEventListener('click', newGame);
@@ -1449,9 +1577,7 @@
   document.getElementById('addEnemy').addEventListener('click', () => addEnemy());
   document.getElementById('addDecision').addEventListener('click', showDecisionDialog);
   bindPlayerInputs();
-  addEnemy();
-  addEnemy();
-  addEnemy();
+  renderEnemies();
 
   updateInitialStatsDisplay();
   renderPotionStatus();
