@@ -68,19 +68,34 @@
     return safe;
   };
 
-  const logMessage = (message) => {
+  // Keep the combat log readable with tone-specific icons and colors.
+  const logToneIcons = {
+    info: '📜',
+    action: '⚔️',
+    success: '✨',
+    warning: '⚠️',
+    danger: '💀'
+  };
+
+  const logMessage = (message, tone = 'info') => {
     const entry = document.createElement('div');
     entry.className = 'log-entry';
+    entry.dataset.tone = tone;
 
     const timestamp = document.createElement('span');
     timestamp.className = 'log-timestamp';
     timestamp.textContent = `[${new Date().toLocaleTimeString()}]`;
+
+    const icon = document.createElement('span');
+    icon.className = 'log-icon';
+    icon.textContent = logToneIcons[tone] || logToneIcons.info;
 
     const body = document.createElement('span');
     body.className = 'log-body';
     body.innerHTML = emphasizeLogTokens(message);
 
     entry.appendChild(timestamp);
+    entry.appendChild(icon);
     entry.appendChild(body);
 
     if (logEl.firstChild) {
@@ -354,10 +369,12 @@
     const grid = document.createElement('div');
     grid.className = 'grid-three';
     const applyButton = document.createElement('button');
+    applyButton.className = 'btn btn-positive';
     applyButton.textContent = 'Start Adventure';
     applyButton.disabled = true;
 
     const cancelButton = document.createElement('button');
+    cancelButton.className = 'btn btn-negative';
     cancelButton.textContent = 'Cancel';
 
     const currentRolls = { skill: null, stamina: null, luck: null };
@@ -385,6 +402,7 @@
       card.appendChild(detail);
 
       const rollButton = document.createElement('button');
+      rollButton.className = 'btn btn-positive';
       rollButton.textContent = 'Roll';
       rollButton.addEventListener('click', () => {
         const result = config.roll();
@@ -441,6 +459,7 @@
       card.appendChild(info);
 
       const chooseButton = document.createElement('button');
+      chooseButton.className = 'btn btn-positive';
       chooseButton.textContent = 'Select';
       chooseButton.addEventListener('click', () => {
         selected = option.name;
@@ -458,8 +477,10 @@
     const actions = document.createElement('div');
     actions.className = 'modal-actions';
     const confirmButton = document.createElement('button');
+    confirmButton.className = 'btn btn-positive';
     confirmButton.textContent = 'Confirm';
     const cancelButton = document.createElement('button');
+    cancelButton.className = 'btn btn-negative';
     cancelButton.textContent = 'Cancel';
 
     cancelButton.addEventListener('click', () => {
@@ -562,14 +583,11 @@
       card.appendChild(description);
 
       if (option.content) {
-        const helper = document.createElement('p');
-        helper.className = 'helper-text';
-        helper.textContent = 'Select the enemy this Luck test applies to.';
-        card.appendChild(helper);
         card.appendChild(option.content);
       }
 
       const chooseButton = document.createElement('button');
+      chooseButton.className = 'btn btn-positive';
       chooseButton.textContent = 'Roll Luck';
       chooseButton.addEventListener('click', () => {
         const handled = option.handler();
@@ -591,6 +609,7 @@
     const actions = document.createElement('div');
     actions.className = 'modal-actions';
     const cancelButton = document.createElement('button');
+    cancelButton.className = 'btn btn-negative';
     cancelButton.textContent = 'Close';
     cancelButton.addEventListener('click', close);
 
@@ -607,7 +626,7 @@
     player.meals -= 1;
     player.stamina = clamp(player.stamina + 4, 0, player.maxStamina);
     syncPlayerInputs();
-    logMessage('You eat a meal and regain 4 Stamina.');
+    logMessage('You eat a meal and regain 4 Stamina.', 'success');
     showActionVisual('eatMeal');
   };
 
@@ -617,10 +636,10 @@
     }
     player.stamina = clamp(player.stamina - 2, 0, player.maxStamina);
     syncPlayerInputs();
-    logMessage('You escaped combat and lost 2 Stamina.');
+    logMessage('You escaped combat and lost 2 Stamina.', 'warning');
     const defeatedFromEscape = player.stamina === 0;
     if (defeatedFromEscape) {
-      logMessage('You have been killed. Game Over.');
+      logMessage('You have been killed. Game Over.', 'danger');
       showActionVisual('loseCombat');
     } else {
       showActionVisual('escape', {
@@ -684,13 +703,13 @@
 
       const attackButton = document.createElement('button');
       attackButton.textContent = 'Attack';
-      attackButton.className = 'attack-button';
+      attackButton.className = 'btn btn-positive attack-button';
       attackButton.addEventListener('click', () => performAttack(index));
       actions.appendChild(attackButton);
 
       const removeButton = document.createElement('button');
       removeButton.textContent = 'Remove';
-      removeButton.className = 'remove-button';
+      removeButton.className = 'btn btn-negative remove-button';
       removeButton.addEventListener('click', () => removeEnemy(index));
       actions.appendChild(removeButton);
 
@@ -720,7 +739,7 @@
     const isLucky = roll <= player.luck;
     player.luck = Math.max(0, player.luck - 1);
     syncPlayerInputs();
-    logMessage(`Testing Luck: rolled ${roll} vs Luck ${player.luck + 1}. ${isLucky ? 'Lucky!' : 'Unlucky.'}`);
+    logMessage(`Testing Luck: rolled ${roll} vs Luck ${player.luck + 1}. ${isLucky ? 'Lucky!' : 'Unlucky.'}`, 'action');
 
     const isPlayerHittingEnemy = context?.type === 'playerHitEnemy';
     const isPlayerHitByEnemy = context?.type === 'playerHitByEnemy';
@@ -745,16 +764,21 @@
     if (context.type === 'playerHitEnemy') {
       const enemy = enemies[context.index];
       if (!enemy) {
-        logMessage('The selected enemy is no longer present.');
+        logMessage('The selected enemy is no longer present.', 'warning');
         return { outcome: 'missing', lucky: isLucky };
       }
 
       const adjustment = isLucky ? -2 : 1;
       enemy.stamina = Math.max(0, enemy.stamina + adjustment);
-      logMessage(isLucky ? 'Lucky strike! Enemy loses an additional 2 Stamina.' : 'Unlucky! Enemy regains 1 Stamina.');
+      logMessage(
+        isLucky
+          ? 'Lucky strike! Enemy loses an additional 2 Stamina.'
+          : 'Unlucky! Enemy regains 1 Stamina.',
+        isLucky ? 'success' : 'danger'
+      );
 
       if (enemy.stamina === 0) {
-        logMessage(`Enemy ${context.index + 1} is defeated.`);
+        logMessage(`Enemy ${context.index + 1} is defeated.`, 'success');
         removeEnemy(context.index);
       } else {
         renderEnemies();
@@ -763,7 +787,12 @@
       const adjustment = isLucky ? 1 : -1;
       player.stamina = clamp(player.stamina + adjustment, 0, player.maxStamina);
       syncPlayerInputs();
-      logMessage(isLucky ? 'Lucky! You reduce the damage by gaining 1 Stamina.' : 'Unlucky! You lose an additional 1 Stamina.');
+      logMessage(
+        isLucky
+          ? 'Lucky! You reduce the damage by gaining 1 Stamina.'
+          : 'Unlucky! You lose an additional 1 Stamina.',
+        isLucky ? 'success' : 'danger'
+      );
       showActionVisual(isLucky ? 'blockEnemy' : 'enemyHitYou');
     }
     return { outcome: context.type, lucky: isLucky };
@@ -785,17 +814,17 @@
     const monsterAttack = rollDice(2) + enemy.skill;
     const playerAttack = rollDice(2) + player.skill;
 
-    logMessage(`Combat roll vs Enemy ${index + 1}: Monster ${monsterAttack} vs Player ${playerAttack}.`);
+    logMessage(`Combat roll vs Enemy ${index + 1}: Monster ${monsterAttack} vs Player ${playerAttack}.`, 'action');
 
     if (monsterAttack === playerAttack) {
-      logMessage('Standoff! No damage dealt.');
+      logMessage('Standoff! No damage dealt.', 'info');
       return;
     }
 
     let defeated = false;
     if (playerAttack > monsterAttack) {
       enemy.stamina = Math.max(0, enemy.stamina - 2);
-      logMessage('You hit the enemy for 2 damage.');
+      logMessage('You hit the enemy for 2 damage.', 'success');
       showActionVisual('playerHitEnemy');
       defeated = enemy.stamina === 0;
 
@@ -809,7 +838,7 @@
     } else {
       player.stamina = clamp(player.stamina - 2, 0, player.maxStamina);
       syncPlayerInputs();
-      logMessage('The enemy hits you for 2 damage.');
+      logMessage('The enemy hits you for 2 damage.', 'danger');
       const wantsLuck = confirm('You took damage. Use Luck to reduce it?');
       if (wantsLuck) {
         testLuck({ type: 'playerHitByEnemy', index });
@@ -817,13 +846,13 @@
 
       // Only trigger the combat defeat art once Luck adjustments settle on zero Stamina.
       if (player.stamina === 0) {
-        logMessage('You have been killed. Game Over.');
+        logMessage('You have been killed. Game Over.', 'danger');
         showActionVisual('loseCombat');
       }
     }
 
     if (defeated) {
-      logMessage(`Enemy ${index + 1} is defeated.`);
+      logMessage(`Enemy ${index + 1} is defeated.`, 'success');
       showActionVisual('defeatEnemy');
       removeEnemy(index);
     } else {
@@ -840,16 +869,16 @@
     let potionSubline = 'Potion restores your vigor.';
     if (player.potion === 'Potion of Skill') {
       player.skill = player.maxSkill;
-      logMessage('Potion of Skill used. Skill restored to max.');
+      logMessage('Potion of Skill used. Skill restored to max.', 'success');
       potionSubline = 'Skill returns to its peak.';
     } else if (player.potion === 'Potion of Strength') {
       player.stamina = player.maxStamina;
-      logMessage('Potion of Strength used. Stamina restored to max.');
+      logMessage('Potion of Strength used. Stamina restored to max.', 'success');
       potionSubline = 'Stamina surges to full.';
     } else if (player.potion === 'Potion of Fortune') {
       player.maxLuck += 1;
       player.luck = player.maxLuck;
-      logMessage('Potion of Fortune used. Luck increased and restored.');
+      logMessage('Potion of Fortune used. Luck increased and restored.', 'success');
       initialStats.luck = player.maxLuck;
       updateInitialStatsDisplay();
       potionSubline = 'Luck rises and refills.';
@@ -864,7 +893,7 @@
     showPotionDialog((choice) => {
       player.potion = choice;
       player.potionUsed = false;
-      logMessage(`${player.potion} selected.`);
+      logMessage(`${player.potion} selected.`, 'info');
       renderPotionStatus();
       if (onSelected) {
         onSelected();
@@ -899,7 +928,7 @@
       addEnemy();
       addEnemy();
       syncPlayerInputs();
-      logMessage('New game started. Roll results applied.');
+      logMessage('New game started. Roll results applied.', 'success');
       renderPotionStatus();
       selectPotion(() => showActionVisual('newGame'));
     });
@@ -907,7 +936,7 @@
 
   // Allow non-combat failures to showcase the dedicated defeat art without altering stats.
   const playGameOverVisual = () => {
-    logMessage('Game Over triggered outside combat.');
+    logMessage('Game Over triggered outside combat.', 'danger');
     showActionVisual('lose');
   };
 
