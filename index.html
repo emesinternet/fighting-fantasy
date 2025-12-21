@@ -19,12 +19,6 @@
       gap: 12px;
       flex-wrap: wrap;
     }
-    .starting-stats {
-      font-size: 0.95rem;
-      background: #f1f1f1;
-      padding: 6px 10px;
-      border-radius: 6px;
-    }
     .layout {
       display: flex;
       gap: 16px;
@@ -130,6 +124,27 @@
       font-size: 0.85rem;
       color: #555;
     }
+    .starting-chip {
+      background: #eef3ff;
+      border: 1px solid #b9c9ff;
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-size: 0.85rem;
+      margin-left: 6px;
+    }
+    .enemy-actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
     button {
       cursor: pointer;
     }
@@ -138,7 +153,6 @@
 <body>
   <h1 class="title-row">
     <span>Fighting Fantasy Companion</span>
-    <span id="initialStatsDisplay" class="starting-stats">Starting Skill: - | Stamina: - | Luck: -</span>
   </h1>
   <button id="newGame">New Game</button>
   <div class="actions row">
@@ -149,9 +163,9 @@
     <div class="column" id="adventureSheet">
       <h2>Adventure Sheet</h2>
       <div class="section">
-        <label>Skill <input type="number" id="skill" value="0"></label>
-        <label>Stamina <input type="number" id="stamina" value="0"></label>
-        <label>Luck <input type="number" id="luck" value="0"></label>
+        <label>Skill <span id="starting-skill" class="starting-chip">Start: -</span> <input type="number" id="skill" value="0"></label>
+        <label>Stamina <span id="starting-stamina" class="starting-chip">Start: -</span> <input type="number" id="stamina" value="0"></label>
+        <label>Luck <span id="starting-luck" class="starting-chip">Start: -</span> <input type="number" id="luck" value="0"></label>
       </div>
       <div class="section">
         <label>Gold Pieces <textarea id="gold"></textarea></label>
@@ -169,7 +183,10 @@
       </div>
     </div>
     <div class="column" id="monsters">
-      <h2>Monster Encounters</h2>
+      <div class="section-header">
+        <h2>Monster Encounters</h2>
+        <button id="addEnemy">Add Enemy</button>
+      </div>
       <div id="monsterList"></div>
     </div>
   </div>
@@ -192,24 +209,30 @@
       potionUsed: false
     };
 
-    // Track the unmodifiable starting maxima so we can surface them near the title.
+    // Track the unmodifiable starting maxima so we can surface them alongside the inputs.
     const initialStats = {
       skill: 0,
       stamina: 0,
       luck: 0
     };
 
-    const enemies = Array.from({ length: 6 }, () => ({ skill: 0, stamina: 0 }));
+    let enemies = [];
 
     const logEl = document.getElementById('log');
-    const initialStatsDisplay = document.getElementById('initialStatsDisplay');
     const potionStatus = document.getElementById('potionStatus');
+    const usePotionButton = document.getElementById('usePotion');
 
     const inputs = {
       skill: document.getElementById('skill'),
       stamina: document.getElementById('stamina'),
       luck: document.getElementById('luck'),
       meals: document.getElementById('meals')
+    };
+
+    const startingBadges = {
+      skill: document.getElementById('starting-skill'),
+      stamina: document.getElementById('starting-stamina'),
+      luck: document.getElementById('starting-luck')
     };
 
     // Utility helpers --------------------------------------------------------
@@ -224,7 +247,9 @@
     };
 
     const updateInitialStatsDisplay = () => {
-      initialStatsDisplay.textContent = `Starting Skill: ${initialStats.skill || '-'} | Stamina: ${initialStats.stamina || '-'} | Luck: ${initialStats.luck || '-'}`;
+      startingBadges.skill.textContent = `Start: ${initialStats.skill || '-'}`;
+      startingBadges.stamina.textContent = `Start: ${initialStats.stamina || '-'}`;
+      startingBadges.luck.textContent = `Start: ${initialStats.luck || '-'}`;
     };
 
     // Lightweight modal scaffolding to keep dialog creation tidy.
@@ -281,10 +306,12 @@
     const renderPotionStatus = () => {
       if (!player.potion) {
         potionStatus.textContent = 'No potion selected.';
+        usePotionButton.disabled = true;
         return;
       }
       const used = player.potionUsed ? ' (used)' : '';
       potionStatus.textContent = `Potion: ${player.potion}${used}`;
+      usePotionButton.disabled = player.potionUsed;
     };
 
     const statConfigs = {
@@ -452,6 +479,125 @@
       modal.appendChild(actions);
     };
 
+    // Offer context-aware Luck testing with clear options and enemy targeting.
+    const showLuckDialog = () => {
+      const { modal, close } = createModal('Test Your Luck', 'Choose when you want to apply Luck.');
+      const grid = document.createElement('div');
+      grid.className = 'grid-three';
+      let selected = null;
+
+      const enemySelect = document.createElement('select');
+      enemySelect.style.width = '100%';
+
+      if (enemies.length === 0) {
+        const option = document.createElement('option');
+        option.textContent = 'No enemies available';
+        option.disabled = true;
+        option.selected = true;
+        enemySelect.appendChild(option);
+        enemySelect.disabled = true;
+      } else {
+        enemies.forEach((enemy, index) => {
+          const option = document.createElement('option');
+          option.value = index;
+          option.textContent = `Enemy ${index + 1} (Skill ${enemy.skill || 0}, Stamina ${enemy.stamina || 0})`;
+          enemySelect.appendChild(option);
+        });
+      }
+
+      const options = [
+        {
+          key: 'general',
+          title: 'General Test',
+          description: 'Roll Luck for a standard check with no combat adjustments.',
+          content: null
+        },
+        {
+          key: 'afterHit',
+          title: 'After Hitting an Enemy',
+          description: 'Try to amplify damage you just dealt.',
+          content: enemySelect
+        },
+        {
+          key: 'afterDamage',
+          title: 'After Taking Damage',
+          description: 'Attempt to soften or worsen damage you received.',
+          content: null
+        }
+      ];
+
+      const cards = options.map((option) => {
+        const card = document.createElement('div');
+        card.className = 'option-card';
+
+        const heading = document.createElement('h4');
+        heading.textContent = option.title;
+        card.appendChild(heading);
+
+        const description = document.createElement('p');
+        description.textContent = option.description;
+        card.appendChild(description);
+
+        if (option.content) {
+          const helper = document.createElement('p');
+          helper.className = 'helper-text';
+          helper.textContent = 'Select the enemy this Luck test applies to.';
+          card.appendChild(helper);
+          card.appendChild(option.content);
+        }
+
+        const chooseButton = document.createElement('button');
+        chooseButton.textContent = 'Select';
+        chooseButton.addEventListener('click', () => {
+          selected = option.key;
+          cards.forEach((c) => c.card.classList.remove('selected'));
+          card.classList.add('selected');
+        });
+        card.appendChild(chooseButton);
+
+        return { card, option };
+      });
+
+      cards.forEach(({ card }) => grid.appendChild(card));
+      modal.appendChild(grid);
+
+      const actions = document.createElement('div');
+      actions.className = 'modal-actions';
+      const cancelButton = document.createElement('button');
+      cancelButton.textContent = 'Cancel';
+      const confirmButton = document.createElement('button');
+      confirmButton.textContent = 'Roll Luck';
+
+      cancelButton.addEventListener('click', close);
+      confirmButton.addEventListener('click', () => {
+        if (!selected) {
+          alert('Pick how you want to use your Luck.');
+          return;
+        }
+
+        if (selected === 'afterHit') {
+          if (enemies.length === 0) {
+            alert('Add an enemy before applying Luck to an attack.');
+            return;
+          }
+          close();
+          testLuck({ type: 'playerHitEnemy', index: parseInt(enemySelect.value, 10) || 0 });
+          return;
+        }
+
+        close();
+        if (selected === 'afterDamage') {
+          testLuck({ type: 'playerHitByEnemy', index: null });
+        } else {
+          testLuck();
+        }
+      });
+
+      actions.appendChild(cancelButton);
+      actions.appendChild(confirmButton);
+      modal.appendChild(actions);
+    };
+
     // Player interactions ----------------------------------------------------
     const handleEatMeal = () => {
       if (player.meals <= 0) {
@@ -473,12 +619,76 @@
       logMessage('You escaped combat and lost 2 Stamina.');
     };
 
+    // Enemy handling --------------------------------------------------------
+    function renderEnemies() {
+      const container = document.getElementById('monsterList');
+      container.innerHTML = '';
+
+      enemies.forEach((enemy, index) => {
+        const box = document.createElement('div');
+        box.className = 'enemy-box';
+
+        const title = document.createElement('strong');
+        title.textContent = `Enemy ${index + 1}`;
+        box.appendChild(title);
+
+        const skillLabel = document.createElement('label');
+        skillLabel.textContent = 'Skill ';
+        const skillInput = document.createElement('input');
+        skillInput.type = 'number';
+        skillInput.value = enemy.skill;
+        skillInput.addEventListener('change', () => {
+          enemy.skill = parseInt(skillInput.value, 10) || 0;
+        });
+        skillLabel.appendChild(skillInput);
+        box.appendChild(skillLabel);
+
+        const staminaLabel = document.createElement('label');
+        staminaLabel.textContent = 'Stamina ';
+        const staminaInput = document.createElement('input');
+        staminaInput.type = 'number';
+        staminaInput.value = enemy.stamina;
+        staminaInput.addEventListener('change', () => {
+          enemy.stamina = parseInt(staminaInput.value, 10) || 0;
+        });
+        staminaLabel.appendChild(staminaInput);
+        box.appendChild(staminaLabel);
+
+        const actions = document.createElement('div');
+        actions.className = 'enemy-actions';
+
+        const attackButton = document.createElement('button');
+        attackButton.textContent = 'Attack';
+        attackButton.addEventListener('click', () => performAttack(index));
+        actions.appendChild(attackButton);
+
+        const removeButton = document.createElement('button');
+        removeButton.textContent = 'Remove';
+        removeButton.addEventListener('click', () => removeEnemy(index));
+        actions.appendChild(removeButton);
+
+        box.appendChild(actions);
+        container.appendChild(box);
+      });
+    }
+
+    function addEnemy(initial = { skill: 0, stamina: 0 }) {
+      enemies.push({ ...initial });
+      renderEnemies();
+    }
+
+    function removeEnemy(index) {
+      enemies.splice(index, 1);
+      renderEnemies();
+    }
+
     // Luck handling ----------------------------------------------------------
     const testLuck = (context) => {
       if (player.luck <= 0) {
         alert('You have no Luck remaining.');
         return { outcome: 'none', lucky: false };
       }
+
       const roll = rollDice(2);
       const isLucky = roll <= player.luck;
       player.luck = Math.max(0, player.luck - 1);
@@ -491,12 +701,20 @@
 
       if (context.type === 'playerHitEnemy') {
         const enemy = enemies[context.index];
+        if (!enemy) {
+          logMessage('The selected enemy is no longer present.');
+          return { outcome: 'missing', lucky: isLucky };
+        }
+
         const adjustment = isLucky ? -2 : 1;
         enemy.stamina = Math.max(0, enemy.stamina + adjustment);
-        context.updateEnemyDisplay();
         logMessage(isLucky ? 'Lucky strike! Enemy loses an additional 2 Stamina.' : 'Unlucky! Enemy regains 1 Stamina.');
+
         if (enemy.stamina === 0) {
-          resetEnemy(context.index);
+          logMessage(`Enemy ${context.index + 1} is defeated.`);
+          removeEnemy(context.index);
+        } else {
+          renderEnemies();
         }
       } else if (context.type === 'playerHitByEnemy') {
         const adjustment = isLucky ? 1 : -1;
@@ -508,21 +726,19 @@
     };
 
     // Combat handling -------------------------------------------------------
-    const performAttack = (index) => {
-      const enemySkillInput = document.getElementById(`enemy-skill-${index}`);
-      const enemyStaminaInput = document.getElementById(`enemy-stamina-${index}`);
-      const enemySkill = parseInt(enemySkillInput.value, 10) || 0;
-      const enemyStamina = parseInt(enemyStaminaInput.value, 10) || 0;
+    function performAttack(index) {
+      const enemy = enemies[index];
+      if (!enemy) {
+        alert('Enemy not found.');
+        return;
+      }
 
-      if (enemySkill <= 0 || enemyStamina <= 0) {
+      if (enemy.skill <= 0 || enemy.stamina <= 0) {
         alert('Set enemy Skill and Stamina before attacking.');
         return;
       }
 
-      enemies[index].skill = enemySkill;
-      enemies[index].stamina = enemyStamina;
-
-      const monsterAttack = rollDice(2) + enemySkill;
+      const monsterAttack = rollDice(2) + enemy.skill;
       const playerAttack = rollDice(2) + player.skill;
 
       logMessage(`Combat roll vs Enemy ${index + 1}: Monster ${monsterAttack} vs Player ${playerAttack}.`);
@@ -532,12 +748,18 @@
         return;
       }
 
+      let defeated = false;
       if (playerAttack > monsterAttack) {
-        enemies[index].stamina = Math.max(0, enemyStamina - 2);
+        enemy.stamina = Math.max(0, enemy.stamina - 2);
         logMessage('You hit the enemy for 2 damage.');
-        const wantsLuck = confirm('You wounded the enemy. Use Luck for extra damage?');
-        if (wantsLuck) {
-          testLuck({ type: 'playerHitEnemy', index, updateEnemyDisplay: () => updateEnemyInputs(index) });
+        defeated = enemy.stamina === 0;
+
+        if (!defeated) {
+          const wantsLuck = confirm('You wounded the enemy. Use Luck for extra damage?');
+          if (wantsLuck) {
+            testLuck({ type: 'playerHitEnemy', index });
+            defeated = !enemies[index];
+          }
         }
       } else {
         player.stamina = clamp(player.stamina - 2, 0, player.maxStamina);
@@ -545,41 +767,17 @@
         logMessage('The enemy hits you for 2 damage.');
         const wantsLuck = confirm('You took damage. Use Luck to reduce it?');
         if (wantsLuck) {
-          testLuck({ type: 'playerHitByEnemy', index, updateEnemyDisplay: () => updateEnemyInputs(index) });
+          testLuck({ type: 'playerHitByEnemy', index });
         }
       }
 
-      updateEnemyInputs(index);
-      if (enemies[index].stamina === 0) {
-        resetEnemy(index);
+      if (defeated) {
         logMessage(`Enemy ${index + 1} is defeated.`);
+        removeEnemy(index);
+      } else {
+        renderEnemies();
       }
-    };
-
-    const resetEnemy = (index) => {
-      enemies[index] = { skill: 0, stamina: 0 };
-      updateEnemyInputs(index);
-    };
-
-    const updateEnemyInputs = (index) => {
-      document.getElementById(`enemy-skill-${index}`).value = enemies[index].skill;
-      document.getElementById(`enemy-stamina-${index}`).value = enemies[index].stamina;
-    };
-
-    const buildMonsterBoxes = () => {
-      const container = document.getElementById('monsterList');
-      enemies.forEach((_, index) => {
-        const box = document.createElement('div');
-        box.className = 'enemy-box';
-        box.innerHTML = `
-          <strong>Enemy ${index + 1}</strong>
-          <label>Skill <input type="number" id="enemy-skill-${index}" value="0"></label>
-          <label>Stamina <input type="number" id="enemy-stamina-${index}" value="0"></label>
-          <button id="attack-${index}">Attack</button>
-        `;
-        container.appendChild(box);
-      });
-    };
+    }
 
     // Game setup ------------------------------------------------------------
     const applyPotion = () => {
@@ -636,7 +834,10 @@
         document.getElementById('equipment').value = '';
         document.getElementById('provisions').value = '';
 
-        enemies.forEach((_, idx) => resetEnemy(idx));
+        enemies = [];
+        addEnemy();
+        addEnemy();
+        addEnemy();
         syncPlayerInputs();
         logMessage('New game started. Roll results applied.');
         renderPotionStatus();
@@ -647,29 +848,15 @@
     // Wiring ----------------------------------------------------------------
     document.getElementById('eatMeal').addEventListener('click', handleEatMeal);
     document.getElementById('escape').addEventListener('click', escapeCombat);
-    document.getElementById('testLuck').addEventListener('click', () => {
-      const contextChoice = prompt('Test Luck context: 1) General 2) After hitting enemy 3) After taking damage');
-      if (contextChoice === '2') {
-        const index = parseInt(prompt('Which enemy number (1-6)?'), 10) - 1;
-        if (index >= 0 && index < enemies.length) {
-          testLuck({ type: 'playerHitEnemy', index, updateEnemyDisplay: () => updateEnemyInputs(index) });
-        } else {
-          alert('Invalid enemy number.');
-        }
-      } else if (contextChoice === '3') {
-        testLuck({ type: 'playerHitByEnemy', index: null, updateEnemyDisplay: () => {} });
-      } else {
-        testLuck();
-      }
-    });
+    document.getElementById('testLuck').addEventListener('click', showLuckDialog);
     document.getElementById('newGame').addEventListener('click', newGame);
     document.getElementById('usePotion').addEventListener('click', applyPotion);
 
-    buildMonsterBoxes();
+    document.getElementById('addEnemy').addEventListener('click', () => addEnemy());
     bindPlayerInputs();
-    enemies.forEach((_, index) => {
-      document.getElementById(`attack-${index}`).addEventListener('click', () => performAttack(index));
-    });
+    addEnemy();
+    addEnemy();
+    addEnemy();
 
     updateInitialStatsDisplay();
     renderPotionStatus();
