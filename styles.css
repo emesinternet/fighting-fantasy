@@ -1,16 +1,16 @@
 :root {
   color-scheme: dark;
-  --bg: #0b1021;
-  --panel: #0f172a;
-  --panel-border: #1f2937;
-  --text: #e5e7eb;
-  --muted: #9ca3af;
-  --accent: #7c3aed;
-  --accent-strong: #a78bfa;
-  --success: #34d399;
-  --warning: #f59e0b;
-  --danger: #ef4444;
-  --surface-raise: rgba(255, 255, 255, 0.04);
+  --bg: #0b0c10;
+  --panel: #0f1118;
+  --panel-border: #1b1e28;
+  --text: #f4f5f7;
+  --muted: #c7c9d1;
+  --accent: #e5e7eb;
+  --accent-strong: #f8fafc;
+  --success: #d1d5db;
+  --warning: #9ca3af;
+  --danger: #6b7280;
+  --surface-raise: rgba(255, 255, 255, 0.05);
 }
 
 * {
@@ -105,6 +105,12 @@ select {
   border: 1px solid var(--panel-border);
 }
 
+select,
+option {
+  background: var(--surface-raise);
+  color: var(--text);
+}
+
 textarea {
   min-height: 48px;
   resize: vertical;
@@ -141,23 +147,23 @@ button {
   cursor: pointer;
   padding: 7px 11px;
   border: 1px solid var(--panel-border);
-  background: #1b2335;
+  background: #151821;
   color: var(--text);
   font-weight: 700;
   transition: background 0.12s ease, color 0.12s ease;
 }
 
 button.primary {
-  border-color: var(--accent);
-  background: #24173d;
+  border-color: var(--panel-border);
+  background: #1d202b;
 }
 
 button:hover:enabled {
-  background: #252f47;
+  background: #1f2330;
 }
 
 button.primary:hover:enabled {
-  background: #2e2050;
+  background: #242837;
 }
 
 button:disabled {
@@ -171,6 +177,10 @@ button:disabled {
   padding: 10px;
   border-radius: 6px;
   background: var(--surface-raise);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
 }
 
 .enemy-box {
@@ -260,7 +270,7 @@ button:disabled {
 
 .option-card.selected {
   border-color: var(--accent);
-  background: rgba(124, 58, 237, 0.08);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .option-card h4 {
@@ -272,6 +282,11 @@ button:disabled {
   margin: 4px 0;
   font-size: 0.92rem;
   color: var(--muted);
+}
+
+.option-card button {
+  width: 100%;
+  margin-top: auto;
 }
 
 .modal-overlay {
@@ -314,13 +329,13 @@ button:disabled {
 }
 
 .starting-chip {
-  background: rgba(124, 58, 237, 0.15);
-  border: 1px solid rgba(124, 58, 237, 0.4);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: 6px;
   padding: 2px 6px;
   font-size: 0.8rem;
   margin-left: 6px;
-  color: var(--accent-strong);
+  color: var(--text);
 }
 
 .badge-group {
@@ -337,13 +352,63 @@ button:disabled {
   border-radius: 6px;
   border: 1px solid var(--panel-border);
   font-weight: 700;
-  color: var(--accent-strong);
+  color: var(--text);
 }
 
 input.inline-number {
   width: 72px;
   margin-left: 6px;
   display: inline-block;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  align-items: end;
+}
+
+.stat-grid label {
+  margin-top: 0;
+}
+
+.inline-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.inline-label input[type='number'] {
+  margin-top: 0;
+}
+
+.potion-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.potion-status {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.meals-row {
+  align-items: center;
+}
+
+.enemy-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.enemy-stats label {
+  margin-top: 0;
 }
 
 .attack-button {

@@ -20,7 +20,7 @@
   <main class="layout">
     <section class="column" id="adventureSheet">
       <h2>Adventure Sheet</h2>
-      <div class="section">
+      <div class="section stat-grid">
         <label>Skill <span id="starting-skill" class="starting-chip">-</span>
           <input type="number" id="skill" value="0" min="0" max="999" class="inline-number">
         </label>
@@ -39,11 +39,11 @@
         <label>Equipment <textarea id="equipment"></textarea></label>
         <label>Provisions <textarea id="provisions"></textarea></label>
         <div class="row meals-row">
-          <label>Meals <input type="number" id="meals" value="10" min="0" max="999"></label>
+          <label class="inline-label">Meals <input type="number" id="meals" value="10" min="0" max="999"></label>
           <button id="eatMeal">Eat Meal</button>
         </div>
         <div class="potion-row">
-          <span id="potionStatus">No potion selected.</span>
+          <label class="inline-label">Potion <span id="potionStatus" class="potion-status">No potion selected.</span></label>
           <button id="usePotion">Use Potion</button>
         </div>
       </div>
