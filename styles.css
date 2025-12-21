@@ -128,9 +128,21 @@ select {
   border: 1px solid var(--panel-border);
 }
 
-select,
-option {
-  background: var(--surface-raise);
+/* Keep dropdowns dark-themed, including the expanded option list. */
+select {
+  color-scheme: dark;
+  background: var(--panel);
+  border-color: var(--btn-border-strong);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+}
+
+select:focus {
+  outline: 2px solid var(--info);
+  outline-offset: 1px;
+}
+
+select option {
+  background: var(--panel);
   color: var(--text);
 }
 
