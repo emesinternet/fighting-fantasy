@@ -123,6 +123,20 @@
     animationOverlay.setAttribute('aria-hidden', 'true');
   };
 
+  // Allow the player to dismiss the overlay immediately without waiting for fades or timers.
+  const closeAnimationOverlayInstantly = () => {
+    clearAnimationTimers();
+    resetAnimationClasses();
+
+    const previousTransition = animationOverlay.style.transition;
+    animationOverlay.style.transition = 'none';
+    animationOverlay.classList.remove('is-visible');
+    animationOverlay.setAttribute('aria-hidden', 'true');
+    // Force style recalculation so the removal takes effect before restoring transitions.
+    void animationOverlay.offsetHeight; // eslint-disable-line no-unused-expressions
+    animationOverlay.style.transition = previousTransition;
+  };
+
   const playActionAnimation = () => {
     clearAnimationTimers();
     resetAnimationClasses();
@@ -205,7 +219,7 @@
     lose: {
       src: 'img/player-lose.png',
       alt: 'The hero collapses from defeat',
-      subline: 'Stamina is spent; hold fast.'
+      subline: 'Game Over.'
     },
     win: {
       src: 'img/player-win.png',
@@ -264,6 +278,8 @@
     animationText.textContent = subline;
     playActionAnimation();
   };
+
+  animationOverlay.addEventListener('click', closeAnimationOverlayInstantly);
 
   // Lightweight modal scaffolding to keep dialog creation tidy.
   const createModal = (title, description) => {
@@ -873,15 +889,18 @@
     showActionVisual('drinkPotion', { subline: potionSubline });
   };
 
-  const selectPotion = () => {
+  const selectPotion = (onSelected) => {
     showPotionDialog((choice) => {
       player.potion = choice;
       player.potionUsed = false;
       logMessage(`${player.potion} selected.`);
       renderPotionStatus();
+      if (onSelected) {
+        onSelected();
+      }
     }, () => {
       alert('Choose a potion to start your adventure.');
-      selectPotion();
+      selectPotion(onSelected);
     });
   };
 
@@ -911,8 +930,7 @@
       syncPlayerInputs();
       logMessage('New game started. Roll results applied.');
       renderPotionStatus();
-      showActionVisual('newGame');
-      selectPotion();
+      selectPotion(() => showActionVisual('newGame'));
     });
   };
 
