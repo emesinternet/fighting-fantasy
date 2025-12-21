@@ -68,6 +68,11 @@ a {
   align-items: center;
 }
 
+.title-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .layout {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -165,11 +170,11 @@ button.primary {
 }
 
 button:hover:enabled {
-  background: #202020;
+  background: #1c1c1c;
 }
 
 button.primary:hover:enabled {
-  background: #252525;
+  background: #262626;
 }
 
 button:disabled {
@@ -549,9 +554,4 @@ blockquote {
 .animation-image.animate-out,
 .animation-text.animate-out {
   animation: fade-down-soft 320ms ease forwards;
-}
-
-.test-row {
-  display: flex;
-  justify-content: flex-end;
 }

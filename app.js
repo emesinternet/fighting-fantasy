@@ -88,6 +88,11 @@
     } else {
       logEl.appendChild(entry);
     }
+
+    // Keep the adventure log focused on the latest moments by trimming to five lines.
+    while (logEl.childElementCount > 5) {
+      logEl.removeChild(logEl.lastChild);
+    }
   };
 
   const updateInitialStatsDisplay = () => {
@@ -118,6 +123,20 @@
     animationOverlay.setAttribute('aria-hidden', 'true');
   };
 
+  // Allow the player to dismiss the overlay immediately without waiting for fades or timers.
+  const closeAnimationOverlayInstantly = () => {
+    clearAnimationTimers();
+    resetAnimationClasses();
+
+    const previousTransition = animationOverlay.style.transition;
+    animationOverlay.style.transition = 'none';
+    animationOverlay.classList.remove('is-visible');
+    animationOverlay.setAttribute('aria-hidden', 'true');
+    // Force style recalculation so the removal takes effect before restoring transitions.
+    void animationOverlay.offsetHeight; // eslint-disable-line no-unused-expressions
+    animationOverlay.style.transition = previousTransition;
+  };
+
   const playActionAnimation = () => {
     clearAnimationTimers();
     resetAnimationClasses();
@@ -138,12 +157,100 @@
     }, 220));
 
     const entryDurationMs = 900; // Covers image and text stagger.
-    const holdDurationMs = 1500;
+    const holdDurationMs = 2000;
     const fadeDurationMs = 360;
 
     animationTimers.push(setTimeout(fadeOutAnimation, entryDurationMs + holdDurationMs));
     animationTimers.push(setTimeout(resetAnimationClasses, entryDurationMs + holdDurationMs + fadeDurationMs));
   };
+
+  // Map game moments to inline action art so the overlay always reinforces the latest move.
+  const actionVisuals = {
+    newGame: {
+      src: 'img/player-new-game.png',
+      alt: 'An adventurer prepares for a fresh quest',
+      subline: 'A new adventure begins.'
+    },
+    eatMeal: {
+      src: 'img/player-eat-meal.png',
+      alt: 'The hero takes time to eat and recover',
+      subline: 'You regain strength from a meal.'
+    },
+    drinkPotion: {
+      src: 'img/player-drink-potion.png',
+      alt: 'The hero drinks a potion',
+      subline: 'Potion power surges through you.'
+    },
+    escape: {
+      src: 'img/player-escape-battle.png',
+      alt: 'The hero slips away from battle',
+      subline: 'You escape, losing 2 Stamina.'
+    },
+    blockEnemy: {
+      src: 'img/player-block-enemy.png',
+      alt: 'The hero blocks an enemy strike',
+      subline: 'Lucky block, restore 1 stamina'
+    },
+    enemyHitYou: {
+      src: 'img/player-fail-block-enemy.png',
+      alt: 'The hero is struck by an enemy',
+      subline: 'Unlocky block, lose 1 stamina.'
+    },
+    playerHitEnemy: {
+      src: 'img/player-hit-enemy.png',
+      alt: 'The hero lands a hit on an enemy',
+      subline: 'Your strike land!'
+    },
+    playerMissEnemy: {
+      src: 'img/player-miss-enemy.png',
+      alt: 'The hero misses an enemy attack',
+      subline: 'Your strike misses'
+    },
+    defeatEnemy: {
+      src: 'img/player-defeat-enemy.png',
+      alt: 'The hero fells an enemy',
+      subline: 'Another foe is vanquished.'
+    },
+    loseCombat: {
+      src: 'img/player-lose-combat.png',
+      alt: 'The hero reels from combat',
+      subline: 'You have been killed. Game Over.'
+    },
+    lose: {
+      src: 'img/player-lose.png',
+      alt: 'The hero collapses from defeat',
+      subline: 'Game Over.'
+    },
+    win: {
+      src: 'img/player-win.png',
+      alt: 'The hero celebrates victory',
+      subline: 'You completed the adventure!'
+    },
+    lucky: {
+      src: 'img/player-lucky-general.png',
+      alt: 'The hero is blessed by luck',
+      subline: 'Luck smiles upon you.'
+    },
+    unlucky: {
+      src: 'img/player-unlucky-general.png',
+      alt: 'The hero suffers an unlucky turn',
+      subline: 'Fortune turns away.'
+    }
+  };
+
+  const showActionVisual = (key, overrides = {}) => {
+    const visual = actionVisuals[key];
+    if (!visual) {
+      return;
+    }
+    const subline = overrides.subline || visual.subline;
+    animationImage.src = visual.src;
+    animationImage.alt = overrides.alt || visual.alt;
+    animationText.textContent = subline;
+    playActionAnimation();
+  };
+
+  animationOverlay.addEventListener('click', closeAnimationOverlayInstantly);
 
   // Lightweight modal scaffolding to keep dialog creation tidy.
   const createModal = (title, description) => {
@@ -501,6 +608,7 @@
     player.stamina = clamp(player.stamina + 4, 0, player.maxStamina);
     syncPlayerInputs();
     logMessage('You eat a meal and regain 4 Stamina.');
+    showActionVisual('eatMeal');
   };
 
   const escapeCombat = () => {
@@ -510,6 +618,15 @@
     player.stamina = clamp(player.stamina - 2, 0, player.maxStamina);
     syncPlayerInputs();
     logMessage('You escaped combat and lost 2 Stamina.');
+    const defeatedFromEscape = player.stamina === 0;
+    if (defeatedFromEscape) {
+      logMessage('You have been killed. Game Over.');
+      showActionVisual('loseCombat');
+    } else {
+      showActionVisual('escape', {
+        subline: 'You escape, losing 2 Stamina.'
+      });
+    }
   };
 
   // Enemy handling --------------------------------------------------------
@@ -605,6 +722,22 @@
     syncPlayerInputs();
     logMessage(`Testing Luck: rolled ${roll} vs Luck ${player.luck + 1}. ${isLucky ? 'Lucky!' : 'Unlucky.'}`);
 
+    const isPlayerHittingEnemy = context?.type === 'playerHitEnemy';
+    const isPlayerHitByEnemy = context?.type === 'playerHitByEnemy';
+
+    let luckSubline = isLucky ? 'Luck holds firm.' : 'Luck slips away.';
+    if (isPlayerHittingEnemy) {
+      luckSubline = isLucky ? 'Extra damage lands true.' : 'The foe steadies.';
+    } else if (isPlayerHitByEnemy) {
+      luckSubline = isLucky ? 'You soften the blow.' : 'The wound deepens.';
+    }
+
+    // Only play the general luck animation when this is not a combat mitigation test, so the
+    // combat-specific art can stay focused on the block and failed block outcomes.
+    if (!isPlayerHitByEnemy) {
+      showActionVisual(isLucky ? 'lucky' : 'unlucky', { subline: luckSubline });
+    }
+
     if (!context) {
       return { outcome: 'general', lucky: isLucky };
     }
@@ -631,6 +764,7 @@
       player.stamina = clamp(player.stamina + adjustment, 0, player.maxStamina);
       syncPlayerInputs();
       logMessage(isLucky ? 'Lucky! You reduce the damage by gaining 1 Stamina.' : 'Unlucky! You lose an additional 1 Stamina.');
+      showActionVisual(isLucky ? 'blockEnemy' : 'enemyHitYou');
     }
     return { outcome: context.type, lucky: isLucky };
   };
@@ -662,6 +796,7 @@
     if (playerAttack > monsterAttack) {
       enemy.stamina = Math.max(0, enemy.stamina - 2);
       logMessage('You hit the enemy for 2 damage.');
+      showActionVisual('playerHitEnemy');
       defeated = enemy.stamina === 0;
 
       if (!defeated) {
@@ -679,10 +814,17 @@
       if (wantsLuck) {
         testLuck({ type: 'playerHitByEnemy', index });
       }
+
+      // Only trigger the combat defeat art once Luck adjustments settle on zero Stamina.
+      if (player.stamina === 0) {
+        logMessage('You have been killed. Game Over.');
+        showActionVisual('loseCombat');
+      }
     }
 
     if (defeated) {
       logMessage(`Enemy ${index + 1} is defeated.`);
+      showActionVisual('defeatEnemy');
       removeEnemy(index);
     } else {
       renderEnemies();
@@ -695,33 +837,41 @@
       alert('No potion available or it has already been used.');
       return;
     }
+    let potionSubline = 'Potion restores your vigor.';
     if (player.potion === 'Potion of Skill') {
       player.skill = player.maxSkill;
       logMessage('Potion of Skill used. Skill restored to max.');
+      potionSubline = 'Skill returns to its peak.';
     } else if (player.potion === 'Potion of Strength') {
       player.stamina = player.maxStamina;
       logMessage('Potion of Strength used. Stamina restored to max.');
+      potionSubline = 'Stamina surges to full.';
     } else if (player.potion === 'Potion of Fortune') {
       player.maxLuck += 1;
       player.luck = player.maxLuck;
       logMessage('Potion of Fortune used. Luck increased and restored.');
       initialStats.luck = player.maxLuck;
       updateInitialStatsDisplay();
+      potionSubline = 'Luck rises and refills.';
     }
     player.potionUsed = true;
     syncPlayerInputs();
     renderPotionStatus();
+    showActionVisual('drinkPotion', { subline: potionSubline });
   };
 
-  const selectPotion = () => {
+  const selectPotion = (onSelected) => {
     showPotionDialog((choice) => {
       player.potion = choice;
       player.potionUsed = false;
       logMessage(`${player.potion} selected.`);
       renderPotionStatus();
+      if (onSelected) {
+        onSelected();
+      }
     }, () => {
       alert('Choose a potion to start your adventure.');
-      selectPotion();
+      selectPotion(onSelected);
     });
   };
 
@@ -751,8 +901,14 @@
       syncPlayerInputs();
       logMessage('New game started. Roll results applied.');
       renderPotionStatus();
-      selectPotion();
+      selectPotion(() => showActionVisual('newGame'));
     });
+  };
+
+  // Allow non-combat failures to showcase the dedicated defeat art without altering stats.
+  const playGameOverVisual = () => {
+    logMessage('Game Over triggered outside combat.');
+    showActionVisual('lose');
   };
 
   // Wiring ----------------------------------------------------------------
@@ -760,8 +916,8 @@
   document.getElementById('escape').addEventListener('click', escapeCombat);
   document.getElementById('testLuck').addEventListener('click', showLuckDialog);
   document.getElementById('newGame').addEventListener('click', newGame);
+  document.getElementById('gameOver').addEventListener('click', playGameOverVisual);
   document.getElementById('usePotion').addEventListener('click', applyPotion);
-  document.getElementById('testAnimation').addEventListener('click', playActionAnimation);
 
   document.getElementById('addEnemy').addEventListener('click', () => addEnemy());
   bindPlayerInputs();
