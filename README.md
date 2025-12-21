@@ -10,10 +10,10 @@ New games start with a single modal that lets you re-roll each stat before locki
 - **Compact notes:** Gold Pieces, Treasures, Equipment, and Provisions sit in a 2x2 grid that collapses to a single column on small screens to save space without sacrificing readability.
 - **Script separation:** All gameplay logic lives in `app.js`, which wires the HTML controls, modals, combat handling, and logging.
 
-## Animation tester
-- A "Play Animation" button sits beneath the Adventure Log to trigger a demo overlay.
-- The overlay darkens and softly blurs the full viewport, then fades/slides a 480x480 placeholder image into the exact center, followed by bolder sample text with a slight delay.
-- After the entry sequence finishes, the overlay holds for roughly a second and a half before fading out with the backdrop.
+## Action art and animation
+- Each key action triggers matching art from `img/`: New Game, Eat Meal, Use Potion, Escape Combat, combat hits/blocks/defeats, and Lucky/Unlucky rolls all display short sublines alongside their illustrations.
+- A "Play Animation" button sits beneath the Adventure Log to trigger the overlay with the victory art for quick testing.
+- The overlay still darkens and softly blurs the full viewport, then fades/slides the centered image in before the subline text, holds briefly, and fades away.
 
 ## Development notes
 - Follow the instructions in `AGENTS.md`; agents should avoid running automated tests or capturing screenshots unless explicitly requested.
