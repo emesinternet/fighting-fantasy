@@ -151,6 +151,12 @@ input[type='number'] {
   margin-top: 8px;
 }
 
+.stat-actions {
+  justify-content: flex-end;
+  align-items: flex-end;
+  margin-top: 0;
+}
+
 .meals-row label {
   display: inline-flex;
   align-items: center;
@@ -223,6 +229,13 @@ button:hover:enabled {
 
 .enemy-box {
   margin-bottom: 10px;
+}
+
+.enemy-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .enemy-actions {
@@ -569,14 +582,29 @@ input.inline-number {
 }
 
 .enemy-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 8px;
-  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
 }
 
 .enemy-stats label {
   margin-top: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.enemy-stats input[type='number'] {
+  width: 76px;
+}
+
+.empty-enemies {
+  margin: 0;
+  padding: 12px;
+  border: 1px dashed var(--panel-border);
+  border-radius: 6px;
+  color: var(--muted);
 }
 
 .enemy-actions .attack-button {
