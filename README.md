@@ -17,7 +17,7 @@ New games start with a single modal that lets you re-roll each stat before locki
 - The overlay darkens and softly blurs the full viewport, then fades/slides the centered image in before the subline text (now using the same fantasy heading font for consistency), holds a little longer, and fades away. Clicking anywhere on the overlay dismisses it immediately if you want to skip the rest of the timing.
 
 ## Saving and loading
-- Click **Save** (left of New Game) to open a quick prompt asking for the book page number. The app downloads a JSON file labeled with that page and a timestamp. The save includes player stats/maxima, notes, meals, potion status, enemies, and recent log history.
+- Click **Save** (left of New Game) to open a quick prompt asking for the book page number. The app downloads a JSON file labeled with that page and a readable date stamp (for example, `2024-06-17_14-30`). The save includes player stats/maxima, notes, meals, potion status, enemies, and recent log history.
 - Click **Load** to select a previously saved JSON file. The adventure sheet, enemies, potions, notes, and log entries restore automatically, and a log entry confirms the loaded page number if provided.
 
 ## Development notes

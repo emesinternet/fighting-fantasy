@@ -235,10 +235,17 @@
     log: logHistory.map((entry) => ({ ...entry }))
   });
 
+  // Produce a filesystem-safe timestamp that is still easy to read in save filenames.
+  const formatFilenameTimestamp = () => {
+    const now = new Date();
+    const pad = (value) => String(value).padStart(2, '0');
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}`;
+  };
+
   const downloadSave = (payload, pageNumberLabel) => {
     const json = JSON.stringify(payload, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const timestamp = formatFilenameTimestamp();
     const safePage = pageNumberLabel && String(pageNumberLabel).trim() ? `page-${String(pageNumberLabel).trim()}` : 'page-unknown';
     const filename = `ff-save-${safePage}-${timestamp}.json`;
     const url = URL.createObjectURL(blob);
@@ -251,19 +258,30 @@
 
   // Guide the player through choosing a page label before downloading the save JSON.
   const showSaveDialog = () => {
-    const { modal, close } = createModal('Save Game', 'Enter the page number you stopped on to label the save file.');
+    const { modal, close } = createModal(
+      'Save Game',
+      'Enter the page number you stopped on to label the save file.',
+      { compact: true }
+    );
 
     const form = document.createElement('div');
     form.className = 'modal-form';
 
+    const field = document.createElement('div');
+    field.className = 'modal-field';
+
     const label = document.createElement('label');
     label.textContent = 'Page Number';
+    label.htmlFor = 'save-page-number';
     const pageInput = document.createElement('input');
+    pageInput.id = 'save-page-number';
     pageInput.type = 'number';
     pageInput.min = '1';
     pageInput.placeholder = 'e.g. 237';
-    label.appendChild(pageInput);
-    form.appendChild(label);
+
+    field.appendChild(label);
+    field.appendChild(pageInput);
+    form.appendChild(field);
 
     const actions = document.createElement('div');
     actions.className = 'modal-actions';
@@ -474,13 +492,16 @@
   animationOverlay.addEventListener('click', closeAnimationOverlayInstantly);
 
   // Lightweight modal scaffolding to keep dialog creation tidy.
-  const createModal = (title, description) => {
+  const createModal = (title, description, options = {}) => {
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.setAttribute('aria-hidden', 'true');
 
     const modal = document.createElement('div');
     modal.className = 'modal';
+    if (options.compact) {
+      modal.classList.add('modal-compact');
+    }
 
     const heading = document.createElement('h3');
     heading.textContent = title;
