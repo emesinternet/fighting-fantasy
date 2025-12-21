@@ -12,7 +12,7 @@ New games start with a single modal that lets you re-roll each stat before locki
 - **Script separation:** All gameplay logic lives in `app.js`, which wires the HTML controls, modals, combat handling, and logging.
 
 ## Action art and animation
-- Each key action triggers matching art from `img/`: New Game, Eat Meal, Use Potion, Escape Combat, combat hits/blocks/defeats, and Lucky/Unlucky rolls all display short sublines alongside their illustrations. The New Game animation fires right after you pick your potion so the art marks the true start of the adventure.
+- Each key action triggers matching art from `img/`: New Game, Eat Meal, Use Potion, Escape Combat, combat hits/blocks/defeats, and Lucky/Unlucky rolls all display short sublines alongside their illustrations. Luck checks after landing a blow now reuse the hit/miss art instead of the generic luck images for clearer feedback. The New Game animation fires right after you pick your potion so the art marks the true start of the adventure.
 - When you lose an exchange and test Luck, the successful check shows "Lucky block, restore 1 stamina" while a failed check shows "Unlocky block, lose 1 stamina." Combat defeat art with "You have been killed. Game Over." only appears when Stamina hits 0, and a separate Game Over button in the header triggers the non-combat defeat image.
 - The overlay darkens and softly blurs the full viewport, then fades/slides the centered image in before the subline text (now using the same fantasy heading font for consistency), holds a little longer, and fades away. Clicking anywhere on the overlay dismisses it immediately if you want to skip the rest of the timing.
 

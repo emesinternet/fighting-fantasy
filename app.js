@@ -751,9 +751,13 @@
       luckSubline = isLucky ? 'You soften the blow.' : 'The wound deepens.';
     }
 
-    // Only play the general luck animation when this is not a combat mitigation test, so the
-    // combat-specific art can stay focused on the block and failed block outcomes.
-    if (!isPlayerHitByEnemy) {
+    // Keep luck animations context-aware: combat mitigation uses block/fail art, attacking
+    // foes replays hit/miss art, and only general tests use the broad luck visuals.
+    if (isPlayerHittingEnemy) {
+      showActionVisual(isLucky ? 'playerHitEnemy' : 'playerMissEnemy', { subline: luckSubline });
+    } else if (isPlayerHitByEnemy) {
+      showActionVisual(isLucky ? 'blockEnemy' : 'enemyHitYou');
+    } else {
       showActionVisual(isLucky ? 'lucky' : 'unlucky', { subline: luckSubline });
     }
 
