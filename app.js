@@ -24,6 +24,10 @@
   let enemies = [];
 
   const logEl = document.getElementById('log');
+  const logHistory = [];
+  const LOG_DISPLAY_LIMIT = 5;
+  const LOG_HISTORY_LIMIT = 50;
+  const loadFileInput = document.getElementById('loadFileInput');
   const potionStatus = document.getElementById('potionStatus');
   const usePotionButton = document.getElementById('usePotion');
 
@@ -46,11 +50,27 @@
     luck: document.getElementById('starting-luck')
   };
 
+  const notes = {
+    gold: document.getElementById('gold'),
+    treasure: document.getElementById('treasure'),
+    equipment: document.getElementById('equipment'),
+    provisions: document.getElementById('provisions')
+  };
+
   // Utility helpers --------------------------------------------------------
   const rollDice = (count) => Array.from({ length: count }, () => Math.floor(Math.random() * 6) + 1)
     .reduce((sum, value) => sum + value, 0);
 
   const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+  // Keep numeric parsing consistent when restoring a save file or clamping manual input.
+  const parseNumber = (value, fallback = 0, min = 0, max = 999) => {
+    const parsed = parseInt(value, 10);
+    if (Number.isFinite(parsed)) {
+      return clamp(parsed, min, max);
+    }
+    return fallback;
+  };
 
   // Format log entries with safe markup and lightweight emphasis to make combat updates easy to scan.
   const escapeHtml = (text) => text
@@ -77,37 +97,42 @@
     danger: '💀'
   };
 
+  const renderLog = () => {
+    logEl.innerHTML = '';
+    const entriesToShow = logHistory.slice(0, LOG_DISPLAY_LIMIT);
+
+    entriesToShow.forEach((entry) => {
+      const row = document.createElement('div');
+      row.className = 'log-entry';
+      row.dataset.tone = entry.tone;
+
+      const timestamp = document.createElement('span');
+      timestamp.className = 'log-timestamp';
+      const parsedDate = entry.timestamp ? new Date(entry.timestamp) : new Date();
+      timestamp.textContent = `[${parsedDate.toLocaleTimeString()}]`;
+
+      const icon = document.createElement('span');
+      icon.className = 'log-icon';
+      icon.textContent = logToneIcons[entry.tone] || logToneIcons.info;
+
+      const body = document.createElement('span');
+      body.className = 'log-body';
+      body.innerHTML = emphasizeLogTokens(entry.message);
+
+      row.appendChild(timestamp);
+      row.appendChild(icon);
+      row.appendChild(body);
+      logEl.appendChild(row);
+    });
+  };
+
   const logMessage = (message, tone = 'info') => {
-    const entry = document.createElement('div');
-    entry.className = 'log-entry';
-    entry.dataset.tone = tone;
-
-    const timestamp = document.createElement('span');
-    timestamp.className = 'log-timestamp';
-    timestamp.textContent = `[${new Date().toLocaleTimeString()}]`;
-
-    const icon = document.createElement('span');
-    icon.className = 'log-icon';
-    icon.textContent = logToneIcons[tone] || logToneIcons.info;
-
-    const body = document.createElement('span');
-    body.className = 'log-body';
-    body.innerHTML = emphasizeLogTokens(message);
-
-    entry.appendChild(timestamp);
-    entry.appendChild(icon);
-    entry.appendChild(body);
-
-    if (logEl.firstChild) {
-      logEl.insertBefore(entry, logEl.firstChild);
-    } else {
-      logEl.appendChild(entry);
+    const timestamp = new Date().toISOString();
+    logHistory.unshift({ message, tone, timestamp });
+    if (logHistory.length > LOG_HISTORY_LIMIT) {
+      logHistory.length = LOG_HISTORY_LIMIT;
     }
-
-    // Keep the adventure log focused on the latest moments by trimming to five lines.
-    while (logEl.childElementCount > 5) {
-      logEl.removeChild(logEl.lastChild);
-    }
+    renderLog();
   };
 
   const updateInitialStatsDisplay = () => {
@@ -115,6 +140,187 @@
     startingBadges.skill.textContent = formatStat(initialStats.skill);
     startingBadges.stamina.textContent = formatStat(initialStats.stamina);
     startingBadges.luck.textContent = formatStat(initialStats.luck);
+  };
+
+  const getNotesState = () => ({
+    gold: notes.gold.value,
+    treasure: notes.treasure.value,
+    equipment: notes.equipment.value,
+    provisions: notes.provisions.value
+  });
+
+  const applyNotesState = (savedNotes = {}) => {
+    Object.entries(notes).forEach(([key, element]) => {
+      element.value = savedNotes[key] || '';
+    });
+  };
+
+  const applyLogState = (savedLog = []) => {
+    logHistory.length = 0;
+    if (Array.isArray(savedLog)) {
+      savedLog.slice(0, LOG_HISTORY_LIMIT).forEach((entry) => {
+        if (entry && typeof entry.message === 'string') {
+          logHistory.push({
+            message: entry.message,
+            tone: entry.tone || 'info',
+            timestamp: entry.timestamp || new Date().toISOString()
+          });
+        }
+      });
+    }
+    renderLog();
+  };
+
+  const applyEnemiesState = (savedEnemies = []) => {
+    if (Array.isArray(savedEnemies)) {
+      enemies = savedEnemies.map((enemy) => ({
+        skill: parseNumber(enemy.skill, 0, 0, 999),
+        stamina: parseNumber(enemy.stamina, 0, 0, 999)
+      }));
+    } else {
+      enemies = [];
+    }
+    renderEnemies();
+  };
+
+  const applyPlayerState = (savedPlayer = {}, savedInitial = {}) => {
+    const safeMaxSkill = parseNumber(
+      savedPlayer.maxSkill,
+      parseNumber(savedPlayer.skill, player.maxSkill || 0, 0, 999),
+      0,
+      999
+    );
+    const safeMaxStamina = parseNumber(
+      savedPlayer.maxStamina,
+      parseNumber(savedPlayer.stamina, player.maxStamina || 0, 0, 999),
+      0,
+      999
+    );
+    const safeMaxLuck = parseNumber(
+      savedPlayer.maxLuck,
+      parseNumber(savedPlayer.luck, player.maxLuck || 0, 0, 999),
+      0,
+      999
+    );
+
+    player.maxSkill = safeMaxSkill;
+    player.maxStamina = safeMaxStamina;
+    player.maxLuck = safeMaxLuck;
+
+    player.skill = clamp(parseNumber(savedPlayer.skill, player.skill || safeMaxSkill, 0, 999), 0, player.maxSkill || 999);
+    player.stamina = clamp(parseNumber(savedPlayer.stamina, player.stamina || safeMaxStamina, 0, 999), 0, player.maxStamina || 999);
+    player.luck = clamp(parseNumber(savedPlayer.luck, player.luck || safeMaxLuck, 0, 999), 0, player.maxLuck || 999);
+    player.meals = parseNumber(savedPlayer.meals, player.meals, 0, 999);
+
+    player.potion = typeof savedPlayer.potion === 'string' ? savedPlayer.potion : null;
+    player.potionUsed = Boolean(savedPlayer.potionUsed);
+
+    initialStats.skill = parseNumber(savedInitial.skill, initialStats.skill || 0, 0, 999);
+    initialStats.stamina = parseNumber(savedInitial.stamina, initialStats.stamina || 0, 0, 999);
+    initialStats.luck = parseNumber(savedInitial.luck, initialStats.luck || 0, 0, 999);
+    updateInitialStatsDisplay();
+
+    renderPotionStatus();
+    syncPlayerInputs();
+  };
+
+  const buildSavePayload = (pageNumberLabel) => ({
+    version: 1,
+    savedAt: new Date().toISOString(),
+    pageNumber: pageNumberLabel,
+    player: { ...player },
+    initialStats: { ...initialStats },
+    notes: getNotesState(),
+    enemies: enemies.map((enemy) => ({ ...enemy })),
+    log: logHistory.map((entry) => ({ ...entry }))
+  });
+
+  const downloadSave = (payload, pageNumberLabel) => {
+    const json = JSON.stringify(payload, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const safePage = pageNumberLabel && String(pageNumberLabel).trim() ? `page-${String(pageNumberLabel).trim()}` : 'page-unknown';
+    const filename = `ff-save-${safePage}-${timestamp}.json`;
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  // Guide the player through choosing a page label before downloading the save JSON.
+  const showSaveDialog = () => {
+    const { modal, close } = createModal('Save Game', 'Enter the page number you stopped on to label the save file.');
+
+    const form = document.createElement('div');
+    form.className = 'modal-form';
+
+    const label = document.createElement('label');
+    label.textContent = 'Page Number';
+    const pageInput = document.createElement('input');
+    pageInput.type = 'number';
+    pageInput.min = '1';
+    pageInput.placeholder = 'e.g. 237';
+    label.appendChild(pageInput);
+    form.appendChild(label);
+
+    const actions = document.createElement('div');
+    actions.className = 'modal-actions';
+    const cancel = document.createElement('button');
+    cancel.className = 'btn btn-negative';
+    cancel.textContent = 'Cancel';
+    const saveButton = document.createElement('button');
+    saveButton.className = 'btn btn-positive';
+    saveButton.textContent = 'Download Save';
+
+    actions.appendChild(cancel);
+    actions.appendChild(saveButton);
+    form.appendChild(actions);
+
+    modal.appendChild(form);
+
+    cancel.addEventListener('click', () => close());
+    saveButton.addEventListener('click', () => {
+      const pageValue = pageInput.value.trim();
+      const payload = buildSavePayload(pageValue || 'Unknown');
+      downloadSave(payload, pageValue);
+      logMessage(`Game saved${pageValue ? ` on Page ${pageValue}` : ''}.`, 'success');
+      close();
+    });
+  };
+
+  // Restore core data in a predictable order so fields sync correctly.
+  const applySaveData = (data) => {
+    applyPlayerState(data.player, data.initialStats);
+    applyNotesState(data.notes);
+    applyEnemiesState(data.enemies);
+    applyLogState(Array.isArray(data.log) ? data.log : []);
+    logMessage(`Save loaded${data.pageNumber ? ` from Page ${data.pageNumber}` : ''}.`, 'success');
+  };
+
+  // Read a JSON save from disk, validate the minimal shape, then hydrate state.
+  const handleLoadFile = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (loadEvent) => {
+      try {
+        const parsed = JSON.parse(loadEvent.target.result);
+        if (!parsed.player || !parsed.initialStats) {
+          throw new Error('Save missing required fields.');
+        }
+        applySaveData(parsed);
+      } catch (error) {
+        console.error('Failed to load save', error);
+        alert('Could not load save file. Please ensure it is a valid Fighting Fantasy save.');
+      } finally {
+        event.target.value = '';
+      }
+    };
+    reader.readAsText(file);
   };
 
   // Handle the overlay animation lifecycle: fade/slide in image, then text, hold, fade everything out.
@@ -1029,9 +1235,12 @@
   document.getElementById('eatMeal').addEventListener('click', handleEatMeal);
   document.getElementById('escape').addEventListener('click', escapeCombat);
   document.getElementById('testLuck').addEventListener('click', showLuckDialog);
+  document.getElementById('saveGame').addEventListener('click', showSaveDialog);
+  document.getElementById('loadGame').addEventListener('click', () => loadFileInput.click());
   document.getElementById('newGame').addEventListener('click', newGame);
   document.getElementById('gameOver').addEventListener('click', playGameOverVisual);
   document.getElementById('usePotion').addEventListener('click', applyPotion);
+  loadFileInput.addEventListener('change', handleLoadFile);
 
   document.getElementById('addEnemy').addEventListener('click', () => addEnemy());
   bindPlayerInputs();

@@ -15,10 +15,14 @@
       <h1>Fighting Fantasy Companion</h1>
     </div>
     <div class="title-actions">
+      <button id="saveGame" class="btn">Save</button>
+      <button id="loadGame" class="btn">Load</button>
       <button id="newGame" class="btn btn-positive">New Game</button>
       <button id="gameOver" class="btn btn-negative">Game Over</button>
     </div>
   </header>
+
+  <input type="file" id="loadFileInput" accept="application/json" aria-label="Load saved game" hidden>
 
   <main class="layout">
     <section class="column" id="adventureSheet">

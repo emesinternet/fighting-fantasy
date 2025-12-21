@@ -392,6 +392,11 @@ button:hover:enabled {
   flex-wrap: wrap;
 }
 
+.modal-form label {
+  display: block;
+  margin-bottom: 12px;
+}
+
 .stat-value {
   font-size: 1.6rem;
   font-weight: bold;
