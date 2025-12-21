@@ -12,8 +12,8 @@ New games start with a single modal that lets you re-roll each stat before locki
 
 ## Animation tester
 - A "Play Animation" button sits beneath the Adventure Log to trigger a demo overlay.
-- The overlay darkens and softly blurs the full viewport, then fades/slides a 600x600 placeholder image into the exact center, followed by sample text with a slight delay.
-- After the entry sequence finishes, the overlay holds for three seconds before fading out with the backdrop.
+- The overlay darkens and softly blurs the full viewport, then fades/slides a 480x480 placeholder image into the exact center, followed by bolder sample text with a slight delay.
+- After the entry sequence finishes, the overlay holds for roughly a second and a half before fading out with the backdrop.
 
 ## Development notes
 - Follow the instructions in `AGENTS.md`; agents should avoid running automated tests or capturing screenshots unless explicitly requested.

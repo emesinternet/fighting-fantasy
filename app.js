@@ -138,7 +138,7 @@
     }, 220));
 
     const entryDurationMs = 900; // Covers image and text stagger.
-    const holdDurationMs = 3000;
+    const holdDurationMs = 1500;
     const fadeDurationMs = 360;
 
     animationTimers.push(setTimeout(fadeOutAnimation, entryDurationMs + holdDurationMs));
