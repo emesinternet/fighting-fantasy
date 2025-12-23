@@ -1380,12 +1380,19 @@
       return;
     }
 
-    const damageReceivedEmoji = playerModifiers.damageReceived > 0 ? '🛡️' : '💀';
+    // Positive damage taken boosts use a skull, while damage reduction flips to a shield with a positive count for clarity.
+    let receivedPart = '';
+    if (playerModifiers.damageReceived) {
+      if (playerModifiers.damageReceived > 0) {
+        receivedPart = `💀+${playerModifiers.damageReceived}`;
+      } else {
+        receivedPart = `🛡️+${Math.abs(playerModifiers.damageReceived)}`;
+      }
+    }
+
     const parts = [
       formatModifierPart(playerModifiers.damageDone, '🗡️'),
-      playerModifiers.damageReceived
-        ? formatModifierPart(playerModifiers.damageReceived, damageReceivedEmoji)
-        : '',
+      receivedPart,
       formatModifierPart(playerModifiers.skillBonus, '🤺')
     ].filter(Boolean);
 

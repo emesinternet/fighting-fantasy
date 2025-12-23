@@ -7,7 +7,7 @@ Single-page web sheet for Fighting Fantasy gamebooks. Track player stats, manage
 - **Load:** Pick a saved JSON file to restore stats, notes, potions, enemies, meals, adventure log entries, and decision log entries.
 
 ## Combat modifiers
-- **Player:** A **Modifier** button beside Test Your Luck opens options for damage done, damage received, and bonus Skill to attack rolls. Active boosts appear with emoji cues beside the stats.
+- **Player:** A **Modifier** button beside Test Your Luck opens options for damage done, damage received, and bonus Skill to attack rolls. Emoji cues: 🗡️ for outgoing damage boosts, 💀 for extra damage taken, 🛡️ for reduced damage taken, and 🤺 for Skill bonuses.
 - **Enemies:** Each enemy has a **Modifier** button beside Attack to tune how much damage it deals or takes as adjustments to the standard 2 damage. Emoji badges show only that foe's modifiers (🗡️ for extra damage it deals, 💀 for extra damage it suffers, 🛡️ for blocked damage).
 
 ## Action art
