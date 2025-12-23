@@ -2,6 +2,8 @@
 
 Single-page web sheet for Fighting Fantasy gamebooks. Track player stats, manage monsters, log outcomes, and save or load progress as JSON in the browser.
 
+<img width="1212" height="816" alt="{B1A56B98-B977-412D-BFB7-EB23FE28DA9B}" src="https://github.com/user-attachments/assets/c7aed55c-c38b-4b9a-a151-74f734c9dd82" />
+
 ## Saving and loading
 - **Save:** Button left of New Game. Prompts for book page number, then downloads a JSON snapshot named with the page and a readable timestamp.
 - **Load:** Pick a saved JSON file to restore stats, notes, potions, enemies, meals, adventure log entries, and decision log entries.
