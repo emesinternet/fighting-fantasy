@@ -670,7 +670,6 @@ input.inline-number {
 .notes-grid {
   display: flex;
   flex-direction: column;
-  gap: 10px;
 }
 
 .notes-columns {
