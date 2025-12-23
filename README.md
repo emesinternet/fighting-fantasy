@@ -4,8 +4,13 @@ Single-page web sheet for Fighting Fantasy gamebooks. Track player stats, manage
 
 <img width="1212" height="816" alt="{B1A56B98-B977-412D-BFB7-EB23FE28DA9B}" src="https://github.com/user-attachments/assets/c7aed55c-c38b-4b9a-a151-74f734c9dd82" />
 
+## New game flow
+- Choose your book before rolling stats. The book is saved with the adventure and prefixes downloaded save files so campaigns stay organized.
+- Roll Skill (1D6 + 6), Stamina (2D6 + 12), and Luck (1D6 + 6) with rerolls until accepted.
+- Pick a potion (Skill, Strength, or Fortune) to carry into the run.
+
 ## Saving and loading
-- **Save:** Button left of New Game. Prompts for book page number, then downloads a JSON snapshot named with the page and a readable timestamp.
+- **Save:** Button left of New Game. Prompts for book page number, then downloads a JSON snapshot that includes the current book name and prefixes the file with it alongside the page and timestamp.
 - **Load:** Pick a saved JSON file to restore stats, notes, potions, enemies, meals, adventure log entries, and decision log entries.
 
 ## Logs
