@@ -1421,7 +1421,7 @@
       formatModifierPart(playerModifiers.skillBonus, '🤺')
     ].filter(Boolean);
 
-    const summary = parts.length ? `Hero mods: ${parts.join(' ')}` : '';
+    const summary = parts.join(' ');
     playerModifierChip.textContent = summary;
     if (summary) {
       playerModifierChip.title = `Damage dealt/taken and Skill bonus: ${parts.join(' ')}`;

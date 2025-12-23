@@ -119,6 +119,12 @@ a {
   margin-bottom: 14px;
 }
 
+/* Keep the notes cluster flush against the column base. */
+.notes-section {
+  padding-bottom: 0;
+  margin-bottom: 0;
+}
+
 label {
   display: block;
   margin-top: 8px;
@@ -260,6 +266,12 @@ button:hover:enabled {
   background: rgba(255, 107, 107, 0.18);
   border-color: var(--danger);
   color: var(--danger);
+}
+
+#generalRoll.btn-roll:hover:enabled {
+  background: rgba(123, 216, 143, 0.18);
+  border-color: var(--success);
+  color: var(--success);
 }
 
 .btn-neutral:hover:enabled {
