@@ -88,18 +88,6 @@ a {
   justify-content: flex-end;
 }
 
-.book-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid var(--panel-border);
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--accent-strong);
-  font-weight: 700;
-}
-
 .layout {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -217,21 +205,14 @@ input[type='number'] {
 }
 
 .resource-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 10px;
-  align-items: stretch;
   margin-top: 8px;
 }
 
-.resource-row .row,
-.resource-row .potion-row {
+.resource-row .row {
   margin-top: 0;
-}
-
-.meals-row,
-.potion-row {
-  width: 100%;
 }
 
 .justify-center {
@@ -256,12 +237,26 @@ input[type='number'] {
   margin: 0;
 }
 
-.potion-row {
-  display: flex;
+
+/* Utility to keep accessible labels available while hiding them visually. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.potion-controls,
+.meal-controls {
+  display: inline-flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  justify-content: space-between;
 }
 
 button {
@@ -664,33 +659,36 @@ input.inline-number {
   margin-top: 0;
 }
 
-.potion-row {
-  display: flex;
-  align-items: center;
+
+.potion-controls {
   gap: 8px;
   margin-top: 8px;
-  flex-wrap: wrap;
-}
-
-.potion-row .inline-label {
-  color: var(--muted);
-  font-weight: 600;
+  justify-content: flex-end;
 }
 
 /* Keep note fields compact without sacrificing readability. */
 .notes-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.notes-columns {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  column-gap: 10px;
-  row-gap: 0px;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.notes-full textarea {
+  width: 100%;
 }
 
 @media (max-width: 720px) {
-  .notes-grid {
+  .notes-columns {
     grid-template-columns: 1fr;
   }
 }
-.potion-row button {
+.potion-controls button {
   align-self: center;
 }
 
