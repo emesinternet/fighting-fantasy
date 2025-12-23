@@ -109,6 +109,12 @@ label {
   font-weight: 600;
 }
 
+.helper-text {
+  color: #a9a9a9;
+  font-size: 13px;
+  margin-top: 4px;
+}
+
 input[type='number'],
 textarea,
 button,
@@ -133,7 +139,6 @@ select {
   color-scheme: dark;
   background: var(--panel);
   border-color: var(--btn-border-strong);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
 }
 
 select#general-roll-select {
@@ -155,8 +160,14 @@ textarea {
   resize: vertical;
 }
 
+input[type='number'],
+textarea,
+select {
+  box-shadow: none;
+}
+
 input[type='number'] {
-  max-width: 88px;
+  max-width: 60px;
 }
 
 .row {
@@ -167,10 +178,19 @@ input[type='number'] {
   margin-top: 8px;
 }
 
+.justify-center {
+  justify-items: center;
+}
+
 .stat-actions {
   justify-content: flex-end;
   align-items: flex-end;
   margin-top: 0;
+  flex-wrap: nowrap;
+}
+
+.stat-actions button {
+  flex: 1 1 auto;
 }
 
 .meals-row label {
@@ -252,11 +272,12 @@ button:hover:enabled {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .enemy-actions {
   display: grid;
-  grid-template-columns: 3fr minmax(min-content, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   align-items: center;
   margin-top: 8px;
@@ -301,6 +322,7 @@ button:hover:enabled {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  height: 30px;
   margin-bottom: 6px;
 }
 
@@ -473,6 +495,7 @@ button:hover:enabled {
   justify-content: flex-end;
   gap: 8px;
   flex-wrap: wrap;
+  margin-top: 12px;
 }
 
 .modal-form {
@@ -483,11 +506,17 @@ button:hover:enabled {
 
 .modal-field label {
   display: block;
-  margin-bottom: 6px;
+  margin: 0 0 4px;
 }
 
 .modal-field input {
+  margin-top: 0;
   width: 100%;
+}
+
+.modal-field textarea,
+.modal-field select {
+  margin-top: 0;
 }
 
 .stat-value {
@@ -530,14 +559,26 @@ input.inline-number {
 }
 
 .stat-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stat-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
   align-items: end;
 }
 
-.stat-grid label {
+.stat-row label {
   margin-top: 0;
+}
+
+@media (max-width: 720px) {
+  .stat-row {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  }
 }
 
 .inline-label {
@@ -630,6 +671,23 @@ input.inline-number {
 .enemy-actions .remove-button {
   width: 100%;
   min-width: min-content;
+}
+
+.modifier-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  color: var(--accent-strong);
+  font-weight: 700;
+  width: fit-content;
+}
+
+.modifier-chip:empty {
+  display: none;
 }
 
 blockquote {
