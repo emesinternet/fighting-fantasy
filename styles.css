@@ -109,6 +109,12 @@ label {
   font-weight: 600;
 }
 
+.helper-text {
+  color: #a9a9a9;
+  font-size: 13px;
+  margin-top: 4px;
+}
+
 input[type='number'],
 textarea,
 button,
@@ -156,7 +162,7 @@ textarea {
 }
 
 input[type='number'] {
-  max-width: 88px;
+  max-width: 60px;
 }
 
 .row {
