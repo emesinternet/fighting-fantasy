@@ -139,7 +139,6 @@ select {
   color-scheme: dark;
   background: var(--panel);
   border-color: var(--btn-border-strong);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
 }
 
 select#general-roll-select {
@@ -161,6 +160,12 @@ textarea {
   resize: vertical;
 }
 
+input[type='number'],
+textarea,
+select {
+  box-shadow: none;
+}
+
 input[type='number'] {
   max-width: 60px;
 }
@@ -171,6 +176,10 @@ input[type='number'] {
   gap: 8px;
   flex-wrap: wrap;
   margin-top: 8px;
+}
+
+.justify-center {
+  justify-content: center;
 }
 
 .stat-actions {
@@ -495,11 +504,17 @@ button:hover:enabled {
 
 .modal-field label {
   display: block;
-  margin-bottom: 6px;
+  margin: 0 0 4px;
 }
 
 .modal-field input {
+  margin-top: 0;
   width: 100%;
+}
+
+.modal-field textarea,
+.modal-field select {
+  margin-top: 0;
 }
 
 .stat-value {

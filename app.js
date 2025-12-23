@@ -92,19 +92,30 @@
     return fallback;
   };
 
+  // Standard Fighting Fantasy combat deals 2 Stamina damage per successful hit.
+  const BASE_ENEMY_DAMAGE = 2;
+
   const createDefaultEnemyModifiers = () => ({
-    damageDealt: 2,
-    damageReceived: 2,
+    damageDealt: 0,
+    damageReceived: 0,
     playerDamageBonus: 0,
-    playerDamageTakenBonus: 0
+    playerDamageTakenBonus: 0,
+    mode: 'delta'
   });
 
-  const normalizeEnemyModifiers = (modifiers = {}) => ({
-    damageDealt: parseNumber(modifiers.damageDealt, 2, 0, 99),
-    damageReceived: parseNumber(modifiers.damageReceived, 2, 0, 99),
-    playerDamageBonus: parseNumber(modifiers.playerDamageBonus, 0, -99, 99),
-    playerDamageTakenBonus: parseNumber(modifiers.playerDamageTakenBonus, 0, -99, 99)
-  });
+  const normalizeEnemyModifiers = (modifiers = {}) => {
+    const parseDelta = (value) => parseNumber(value, 0, -99, 99);
+    const parseLegacyValue = (value) => parseNumber(value, BASE_ENEMY_DAMAGE, 0, 99) - BASE_ENEMY_DAMAGE;
+    const isDeltaModel = modifiers.mode === 'delta';
+
+    return {
+      damageDealt: isDeltaModel ? parseDelta(modifiers.damageDealt) : parseLegacyValue(modifiers.damageDealt),
+      damageReceived: isDeltaModel ? parseDelta(modifiers.damageReceived) : parseLegacyValue(modifiers.damageReceived),
+      playerDamageBonus: parseDelta(modifiers.playerDamageBonus),
+      playerDamageTakenBonus: parseDelta(modifiers.playerDamageTakenBonus),
+      mode: 'delta'
+    };
+  };
 
   const getEnemyModifiers = (enemy) => normalizeEnemyModifiers(enemy?.modifiers || createDefaultEnemyModifiers());
 
@@ -1364,10 +1375,14 @@
     if (!playerModifierChip) {
       return;
     }
+
+    const damageReceivedEmoji = playerModifiers.damageReceived > 0 ? '🛡️' : '💀';
     const parts = [
-      formatModifierPart(playerModifiers.damageDone, '⚔️'),
-      formatModifierPart(playerModifiers.damageReceived, '🛡️'),
-      formatModifierPart(playerModifiers.skillBonus, '✨')
+      formatModifierPart(playerModifiers.damageDone, '🗡️'),
+      playerModifiers.damageReceived
+        ? formatModifierPart(playerModifiers.damageReceived, damageReceivedEmoji)
+        : '',
+      formatModifierPart(playerModifiers.skillBonus, '🤺')
     ].filter(Boolean);
 
     playerModifierChip.textContent = parts.length ? `Hero mods: ${parts.join(' ')}` : '';
@@ -1375,14 +1390,20 @@
 
   const summarizeEnemyModifiers = (enemy) => {
     const modifiers = getEnemyModifiers(enemy);
-    const damageFromPlayer = modifiers.damageReceived + modifiers.playerDamageBonus + playerModifiers.damageDone;
-    const damageToPlayer = modifiers.damageDealt + modifiers.playerDamageTakenBonus + playerModifiers.damageReceived;
+    const damageFromPlayer = BASE_ENEMY_DAMAGE
+      + modifiers.damageReceived
+      + modifiers.playerDamageBonus
+      + playerModifiers.damageDone;
+    const damageToPlayer = BASE_ENEMY_DAMAGE
+      + modifiers.damageDealt
+      + modifiers.playerDamageTakenBonus
+      + playerModifiers.damageReceived;
 
     const pieces = [];
-    if (modifiers.damageReceived !== 2 || modifiers.playerDamageBonus || playerModifiers.damageDone) {
+    if (modifiers.damageReceived || modifiers.playerDamageBonus || playerModifiers.damageDone) {
       pieces.push(`🛡️${Math.max(0, damageFromPlayer)}`);
     }
-    if (modifiers.damageDealt !== 2 || modifiers.playerDamageTakenBonus || playerModifiers.damageReceived) {
+    if (modifiers.damageDealt || modifiers.playerDamageTakenBonus || playerModifiers.damageReceived) {
       pieces.push(`🗡️${Math.max(0, damageToPlayer)}`);
     }
     return pieces.join(' ');
@@ -1390,13 +1411,19 @@
 
   const calculateDamageToEnemy = (enemy) => {
     const modifiers = getEnemyModifiers(enemy);
-    const adjusted = modifiers.damageReceived + playerModifiers.damageDone + modifiers.playerDamageBonus;
+    const adjusted = BASE_ENEMY_DAMAGE
+      + modifiers.damageReceived
+      + playerModifiers.damageDone
+      + modifiers.playerDamageBonus;
     return Math.max(0, adjusted);
   };
 
   const calculateDamageToPlayer = (enemy) => {
     const modifiers = getEnemyModifiers(enemy);
-    const adjusted = modifiers.damageDealt + playerModifiers.damageReceived + modifiers.playerDamageTakenBonus;
+    const adjusted = BASE_ENEMY_DAMAGE
+      + modifiers.damageDealt
+      + playerModifiers.damageReceived
+      + modifiers.playerDamageTakenBonus;
     return Math.max(0, adjusted);
   };
 
@@ -1513,33 +1540,19 @@
     const fields = [
       {
         id: 'damage-dealt',
-        label: 'Damage to you on a hit',
+        label: 'Damage modifier when it hits you',
         value: modifiers.damageDealt,
-        min: 0,
-        helper: 'Set how much damage this enemy inflicts when it wins a round.'
+        min: -99,
+        max: 99,
+        helper: 'Adjusts the standard 2 damage this enemy inflicts when it wins a round.'
       },
       {
         id: 'damage-received',
-        label: 'Damage it takes on a hit',
+        label: 'Damage modifier when you hit it',
         value: modifiers.damageReceived,
-        min: 0,
-        helper: 'Set how much damage this enemy suffers when you win a round.'
-      },
-      {
-        id: 'player-damage-bonus',
-        label: 'Extra damage you deal to this enemy',
-        value: modifiers.playerDamageBonus,
         min: -99,
         max: 99,
-        helper: 'Bonus (or penalty) applied after your own modifiers.'
-      },
-      {
-        id: 'player-damage-taken',
-        label: 'Extra damage you take from this enemy',
-        value: modifiers.playerDamageTakenBonus,
-        min: -99,
-        max: 99,
-        helper: 'Bonus (or penalty) added after your own damage received modifier.'
+        helper: 'Adjusts the standard 2 damage this enemy takes when you win a round.'
       }
     ];
 
@@ -1586,8 +1599,8 @@
       const updated = normalizeEnemyModifiers({
         damageDealt: inputsMap['damage-dealt'].value,
         damageReceived: inputsMap['damage-received'].value,
-        playerDamageBonus: inputsMap['player-damage-bonus'].value,
-        playerDamageTakenBonus: inputsMap['player-damage-taken'].value
+        playerDamageBonus: modifiers.playerDamageBonus,
+        playerDamageTakenBonus: modifiers.playerDamageTakenBonus
       });
       enemy.modifiers = updated;
       renderEnemies();
