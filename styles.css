@@ -82,7 +82,22 @@ a {
 
 .title-actions {
   display: flex;
+  align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.book-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--accent-strong);
+  font-weight: 700;
 }
 
 .layout {
@@ -201,6 +216,24 @@ input[type='number'] {
   margin-top: 8px;
 }
 
+.resource-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 10px;
+  align-items: stretch;
+  margin-top: 8px;
+}
+
+.resource-row .row,
+.resource-row .potion-row {
+  margin-top: 0;
+}
+
+.meals-row,
+.potion-row {
+  width: 100%;
+}
+
 .justify-center {
   justify-items: center;
 }
@@ -228,7 +261,7 @@ input[type='number'] {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  margin-top: 10px;
+  justify-content: space-between;
 }
 
 button {
@@ -292,10 +325,6 @@ button:hover:enabled {
   height: 100%;
 }
 
-.enemy-box {
-  margin-bottom: 10px;
-}
-
 .enemy-header {
   display: flex;
   align-items: center;
@@ -329,7 +358,6 @@ button:hover:enabled {
 }
 
 .monster-list {
-  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -673,6 +701,7 @@ input.inline-number {
 
 .meals-row {
   align-items: center;
+  justify-content: space-between;
 }
 
 .meals-row input[type='number'] {

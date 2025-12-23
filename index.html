@@ -16,6 +16,7 @@
         <h1>Fighting Fantasy Companion</h1>
       </div>
       <div class="title-actions">
+        <div id="currentBookLabel" class="book-chip" aria-live="polite">No book selected</div>
         <button id="saveGame" class="btn">Save</button>
         <button id="loadGame" class="btn">Load</button>
         <button id="newGame" class="btn btn-positive">New Game</button>
@@ -53,19 +54,20 @@
         </div>
 
         <div class="section notes-section">
-          <div class="row meals-row">
-            <label class="inline-label">Meals <input type="number" id="meals" value="10" min="0" max="999"></label>
-            <button id="eatMeal" class="btn btn-positive align-end">Eat Meal</button>
-          </div>
-          <div class="potion-row">
-            <label class="inline-label">Potion <span id="potionStatus" class="potion-status">No potion selected.</span></label>
-            <button id="usePotion" class="btn btn-positive align-end">Use Potion</button>
+          <div class="resource-row">
+            <div class="row meals-row">
+              <label class="inline-label">Meals <input type="number" id="meals" value="10" min="0" max="999"></label>
+              <button id="eatMeal" class="btn btn-positive align-end">Eat Meal</button>
+            </div>
+            <div class="potion-row">
+              <label class="inline-label">Potion <span id="potionStatus" class="potion-status">No potion selected.</span></label>
+              <button id="usePotion" class="btn btn-positive align-end">Use Potion</button>
+            </div>
           </div>
           <div class="notes-grid">
             <label>Gold Pieces <textarea id="gold"></textarea></label>
             <label>Treasures <textarea id="treasure"></textarea></label>
             <label>Equipment <textarea id="equipment"></textarea></label>
-            <label>Provisions <textarea id="provisions"></textarea></label>
           </div>
         </div>
       </section>

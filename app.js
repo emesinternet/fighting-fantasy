@@ -28,6 +28,21 @@
     luck: 0
   };
 
+  const BOOK_OPTIONS = [
+    'The Warlock of Firetop Mountain',
+    'City of Thieves',
+    'Citadel of Chaos',
+    'Forest of Doom',
+    'House of Hell',
+    'Port of Peril',
+    'Creature of Havoc',
+    'Deathtrap Dungeon',
+    'Appointment with F.E.A.R.',
+    'Island of the Lizard King'
+  ];
+
+  let currentBook = '';
+
   let enemies = [];
   // Preserve stable enemy identifiers so names do not shift when the list changes.
   let nextEnemyId = 1;
@@ -42,6 +57,7 @@
   const potionStatus = document.getElementById('potionStatus');
   const usePotionButton = document.getElementById('usePotion');
   const playerModifierChip = document.getElementById('playerModifierChip');
+  const currentBookLabel = document.getElementById('currentBookLabel');
 
   // Animation overlay elements for action highlights.
   const animationOverlay = document.getElementById('action-overlay');
@@ -71,8 +87,7 @@
   const notes = {
     gold: document.getElementById('gold'),
     treasure: document.getElementById('treasure'),
-    equipment: document.getElementById('equipment'),
-    provisions: document.getElementById('provisions')
+    equipment: document.getElementById('equipment')
   };
 
   // Utility helpers --------------------------------------------------------
@@ -248,11 +263,22 @@
     startingBadges.luck.textContent = formatStat(initialStats.luck);
   };
 
+  const renderCurrentBook = () => {
+    if (!currentBookLabel) {
+      return;
+    }
+    currentBookLabel.textContent = currentBook ? `Book: ${currentBook}` : 'No book selected';
+  };
+
+  const setCurrentBook = (bookName) => {
+    currentBook = bookName || '';
+    renderCurrentBook();
+  };
+
   const getNotesState = () => ({
     gold: notes.gold.value,
     treasure: notes.treasure.value,
-    equipment: notes.equipment.value,
-    provisions: notes.provisions.value
+    equipment: notes.equipment.value
   });
 
   const applyNotesState = (savedNotes = {}) => {
@@ -374,9 +400,10 @@
   };
 
   const buildSavePayload = (pageNumberLabel) => ({
-    version: 3,
+    version: 4,
     savedAt: new Date().toISOString(),
     pageNumber: pageNumberLabel,
+    book: currentBook || null,
     player: { ...player },
     initialStats: { ...initialStats },
     playerModifiers: { ...playerModifiers },
@@ -393,12 +420,22 @@
     return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}`;
   };
 
+  // Sanitize book names so the chosen title can safely prefix downloaded saves.
+  const formatBookForFilename = (bookName) => {
+    if (!bookName) {
+      return 'book-unknown';
+    }
+    const normalized = bookName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    return normalized || 'book-unknown';
+  };
+
   const downloadSave = (payload, pageNumberLabel) => {
     const json = JSON.stringify(payload, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const timestamp = formatFilenameTimestamp();
     const safePage = pageNumberLabel && String(pageNumberLabel).trim() ? `page-${String(pageNumberLabel).trim()}` : 'page-unknown';
-    const filename = `ff-save-${safePage}-${timestamp}.json`;
+    const safeBook = formatBookForFilename(currentBook);
+    const filename = `${safeBook}-ff-save-${safePage}-${timestamp}.json`;
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
@@ -539,15 +576,104 @@
     });
   };
 
+  // Prompt the book choice up front so saves and logs can stay tied to the right title.
+  const showBookDialog = (onSelected, onCancelled) => {
+    const { overlay, modal, close } = createModal(
+      'Choose Your Book',
+      'Pick which Fighting Fantasy book you are playing before rolling stats.',
+      { compact: true }
+    );
+
+    const form = document.createElement('div');
+    form.className = 'modal-form';
+
+    const field = document.createElement('div');
+    field.className = 'modal-field';
+
+    const label = document.createElement('label');
+    label.textContent = 'Book';
+    label.htmlFor = 'book-select';
+
+    const select = document.createElement('select');
+    select.id = 'book-select';
+
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'Select a book';
+    placeholder.disabled = true;
+    placeholder.selected = true;
+    select.appendChild(placeholder);
+
+    BOOK_OPTIONS.forEach((book) => {
+      const option = document.createElement('option');
+      option.value = book;
+      option.textContent = book;
+      if (book === currentBook) {
+        option.selected = true;
+        placeholder.selected = false;
+      }
+      select.appendChild(option);
+    });
+
+    field.appendChild(label);
+    field.appendChild(select);
+    form.appendChild(field);
+
+    const actions = document.createElement('div');
+    actions.className = 'modal-actions';
+    const cancel = document.createElement('button');
+    cancel.className = 'btn btn-negative';
+    cancel.textContent = 'Cancel';
+    const confirm = document.createElement('button');
+    confirm.className = 'btn btn-positive';
+    confirm.textContent = 'Confirm Book';
+
+    actions.appendChild(cancel);
+    actions.appendChild(confirm);
+    form.appendChild(actions);
+    modal.appendChild(form);
+
+    const finalizeSelection = () => {
+      const chosen = select.value;
+      if (!chosen) {
+        alert('Please choose a book before starting your adventure.');
+        return;
+      }
+      setCurrentBook(chosen);
+      logMessage(`Adventure set for ${chosen}.`, 'info');
+      close();
+      if (onSelected) {
+        onSelected(chosen);
+      }
+    };
+
+    cancel.addEventListener('click', () => {
+      close();
+      if (onCancelled) {
+        onCancelled();
+      }
+    });
+
+    confirm.addEventListener('click', finalizeSelection);
+    overlay.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        finalizeSelection();
+      }
+    });
+  };
+
   // Restore core data in a predictable order so fields sync correctly.
   const applySaveData = (data) => {
+    setCurrentBook(typeof data.book === 'string' ? data.book : '');
     applyPlayerState(data.player, data.initialStats);
     applyPlayerModifiers(data.playerModifiers || {});
     applyNotesState(data.notes);
     applyEnemiesState(data.enemies);
     applyLogState(Array.isArray(data.log) ? data.log : []);
     applyDecisionLogState(Array.isArray(data.decisionLog) ? data.decisionLog : []);
-    logMessage(`Save loaded${data.pageNumber ? ` from Page ${data.pageNumber}` : ''}.`, 'success');
+    const bookDetail = currentBook ? ` for ${currentBook}` : '';
+    logMessage(`Save loaded${data.pageNumber ? ` from Page ${data.pageNumber}` : ''}${bookDetail}.`, 'success');
   };
 
   // Read a JSON save from disk, validate the minimal shape, then hydrate state.
@@ -1896,48 +2022,59 @@
   };
 
   const newGame = () => {
-    // Do not finalize state until the player confirms their potion to avoid recursion loops on cancel.
-    showStatRollDialog((rolls) => {
-      const applyNewGameState = (potionChoice) => {
-        player.skill = player.maxSkill = rolls.skill;
-        player.stamina = player.maxStamina = rolls.stamina;
-        player.luck = player.maxLuck = rolls.luck;
-        player.meals = 10;
-        player.potion = potionChoice;
-        player.potionUsed = false;
-        playerModifiers.damageDone = 0;
-        playerModifiers.damageReceived = 0;
-        playerModifiers.skillBonus = 0;
+    const startStatRolling = () => {
+      // Do not finalize state until the player confirms their potion to avoid recursion loops on cancel.
+      showStatRollDialog((rolls) => {
+        const applyNewGameState = (potionChoice) => {
+          player.skill = player.maxSkill = rolls.skill;
+          player.stamina = player.maxStamina = rolls.stamina;
+          player.luck = player.maxLuck = rolls.luck;
+          player.meals = 10;
+          player.potion = potionChoice;
+          player.potionUsed = false;
+          playerModifiers.damageDone = 0;
+          playerModifiers.damageReceived = 0;
+          playerModifiers.skillBonus = 0;
 
-        initialStats.skill = rolls.skill;
-        initialStats.stamina = rolls.stamina;
-        initialStats.luck = rolls.luck;
-        updateInitialStatsDisplay();
+          initialStats.skill = rolls.skill;
+          initialStats.stamina = rolls.stamina;
+          initialStats.luck = rolls.luck;
+          updateInitialStatsDisplay();
 
-        document.getElementById('gold').value = '';
-        document.getElementById('treasure').value = '';
-        document.getElementById('equipment').value = '';
-        document.getElementById('provisions').value = '';
+          document.getElementById('gold').value = '';
+          document.getElementById('treasure').value = '';
+          document.getElementById('equipment').value = '';
 
-        // Starting fresh should leave the adventure log empty so previous runs do not leak context.
-        logHistory.length = 0;
+          // Starting fresh should leave the adventure log empty so previous runs do not leak context.
+          logHistory.length = 0;
 
-        enemies = [];
-        nextEnemyId = 1;
-        renderEnemies();
-        decisionLogHistory.length = 0;
-        renderDecisionLog();
-        syncPlayerInputs();
-        renderLog();
-        logMessage('New game started. Roll results applied.', 'success');
-        renderPotionStatus();
-        showActionVisual('newGame');
-      };
+          enemies = [];
+          nextEnemyId = 1;
+          renderEnemies();
+          decisionLogHistory.length = 0;
+          renderDecisionLog();
+          syncPlayerInputs();
+          renderLog();
+          const bookLabel = currentBook || 'Unknown Book';
+          logMessage(`New game started for ${bookLabel}. Roll results applied.`, 'success');
+          renderPotionStatus();
+          showActionVisual('newGame');
+        };
 
-      selectPotion((choice) => applyNewGameState(choice), () => {
-        logMessage('New game cancelled before choosing a potion. Current adventure continues.', 'warning');
+        selectPotion((choice) => applyNewGameState(choice), () => {
+          logMessage('New game cancelled before choosing a potion. Current adventure continues.', 'warning');
+        });
       });
-    });
+    };
+
+    showBookDialog(
+      () => {
+        startStatRolling();
+      },
+      () => {
+        logMessage('New game cancelled before selecting a book. Current adventure continues.', 'warning');
+      }
+    );
   };
 
   // Allow non-combat failures to showcase the dedicated defeat art without altering stats.
@@ -2032,6 +2169,7 @@
   renderEnemies();
 
   updateInitialStatsDisplay();
+  renderCurrentBook();
   renderPotionStatus();
   syncPlayerInputs();
   renderLog();
