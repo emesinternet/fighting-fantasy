@@ -1839,12 +1839,16 @@
         document.getElementById('equipment').value = '';
         document.getElementById('provisions').value = '';
 
+        // Starting fresh should leave the adventure log empty so previous runs do not leak context.
+        logHistory.length = 0;
+
         enemies = [];
         nextEnemyId = 1;
         renderEnemies();
         decisionLogHistory.length = 0;
         renderDecisionLog();
         syncPlayerInputs();
+        renderLog();
         logMessage('New game started. Roll results applied.', 'success');
         renderPotionStatus();
         showActionVisual('newGame');
