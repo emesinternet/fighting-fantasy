@@ -338,7 +338,7 @@ button:hover:enabled {
 .log {
   border: 1px solid var(--panel-border);
   padding: 10px;
-  --log-visible-rows: 5;
+  --log-visible-rows: 4;
   --log-row-height: 46px;
   min-height: calc(var(--log-visible-rows) * var(--log-row-height));
   max-height: calc(var(--log-visible-rows) * var(--log-row-height));

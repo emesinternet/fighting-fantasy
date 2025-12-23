@@ -7,5 +7,14 @@ Single-page web sheet for Fighting Fantasy gamebooks. Track player stats, manage
 - **Load:** Pick a saved JSON file to restore stats, notes, potions, enemies, meals, adventure log entries, and decision log entries.
 
 ## Logs
-- **Adventure Log:** Scrollable list sized for five entries with visible timestamps to keep recent actions easy to follow.
+- **Adventure Log:** Scrollable list sized for four entries with visible timestamps to keep recent actions easy to follow.
 - **Decision Log:** Use the **+** button beside the header to record a page number and decision; timestamps remain in the save file for reference but stay hidden in the UI when browsing entries.
+
+## Keyboard shortcuts
+- **D:** Open Add Decision (Enter saves; Shift+Enter adds a newline in the decision text).
+- **A:** Add Enemy.
+- **1–9:** Attack the corresponding enemy slot.
+- **R:** Open the General Roll dialog for custom dice.
+- **T:** Test Luck.
+- **F10:** Save game.
+- **F12:** Load game.
