@@ -44,6 +44,9 @@
             <label>Luck <span id="starting-luck" class="starting-chip">-</span>
               <input type="number" id="luck" value="0" min="0" max="999" class="inline-number">
             </label>
+            <label id="magic-stat" class="hidden">Magic <span id="starting-magic" class="starting-chip">-</span>
+              <input type="number" id="magic" value="0" min="0" max="999" class="inline-number">
+            </label>
           </div>
           <div class="row stat-actions">
             <button id="testLuck" class="btn btn-positive">Test Your Luck</button>
@@ -55,12 +58,12 @@
         <div class="section notes-section">
           <div class="resource-row">
             <div class="row meals-row">
-              <div class="meal-controls">
+              <div class="meal-controls" id="mealControls">
                 <button id="eatMeal" class="btn btn-positive align-end">Eat Meal</button>
                 <label class="visually-hidden" for="meals">Meals remaining</label>
                 <input type="number" id="meals" value="10" min="0" max="999" aria-label="Meals remaining">
               </div>
-              <div class="potion-controls">
+              <div class="potion-controls" id="potionControls">
                 <span id="potionStatus" class="potion-status" aria-live="polite">No potion selected.</span>
                 <button id="usePotion" class="btn btn-positive align-end">Use Potion</button>
               </div>
@@ -71,7 +74,19 @@
               <label>Gold Pieces <textarea id="gold"></textarea></label>
               <label>Equipment <textarea id="equipment"></textarea></label>
             </div>
-            <label class="notes-full">Treasures <textarea id="treasure"></textarea></label>
+            <div class="notes-lower">
+              <label class="notes-full treasures-label">Treasures <textarea id="treasure"></textarea></label>
+              <div id="spellsPanel" class="spells-card hidden">
+                <div class="spells-header">
+                  <div>
+                    <h4>Spells</h4>
+                    <p id="spellsHelperText" class="helper-text">Prepare spells with your Magic.</p>
+                  </div>
+                  <button id="castSpell" class="btn btn-neutral btn-small">Cast Spell</button>
+                </div>
+                <div id="spellsTable" class="spells-table"></div>
+              </div>
+            </div>
           </div>
         </div>
       </section>

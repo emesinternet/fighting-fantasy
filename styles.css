@@ -130,6 +130,10 @@ a {
   margin-bottom: 0;
 }
 
+.hidden {
+  display: none !important;
+}
+
 label {
   display: block;
   margin-top: 8px;
@@ -293,6 +297,11 @@ button:disabled {
 button:hover:enabled {
   background: var(--btn-hover);
   border-color: var(--btn-border-strong);
+}
+
+.btn-small {
+  padding: 6px 10px;
+  font-size: 0.9rem;
 }
 
 .btn-positive:hover:enabled {
@@ -644,7 +653,7 @@ input.inline-number {
 
 .stat-row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 10px;
   align-items: end;
 }
@@ -655,7 +664,7 @@ input.inline-number {
 
 @media (max-width: 720px) {
   .stat-row {
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   }
 }
 
@@ -693,6 +702,19 @@ input.inline-number {
   width: 100%;
 }
 
+.notes-lower {
+  display: grid;
+  grid-template-columns: 1fr minmax(220px, 280px);
+  gap: 10px;
+  align-items: stretch;
+}
+
+@media (max-width: 1024px) {
+  .notes-lower {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 720px) {
   .notes-columns {
     grid-template-columns: 1fr;
@@ -718,6 +740,64 @@ input.inline-number {
 
 .meals-row button {
   align-self: center;
+}
+
+.spells-card {
+  border: 1px solid var(--panel-border);
+  background: var(--surface-raise);
+  border-radius: var(--radius);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 100%;
+}
+
+.spells-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.spells-table {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.spell-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+  align-items: start;
+  padding: 8px;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.spell-row h5 {
+  margin: 0;
+  color: var(--accent-strong);
+}
+
+.spell-row p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.spell-count {
+  font-weight: 700;
+  color: var(--accent-strong);
+  min-width: 38px;
+  text-align: right;
+}
+
+.spells-empty {
+  margin: 0;
+  color: var(--muted);
 }
 
 .enemy-stats {

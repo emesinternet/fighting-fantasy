@@ -6,9 +6,11 @@
     skill: 0,
     stamina: 0,
     luck: 0,
+    magic: 0,
     maxSkill: 0,
     maxStamina: 0,
     maxLuck: 0,
+    maxMagic: 0,
     meals: 10,
     potion: null,
     potionUsed: false
@@ -25,7 +27,8 @@
   const initialStats = {
     skill: 0,
     stamina: 0,
-    luck: 0
+    luck: 0,
+    magic: 0
   };
 
   const BOOK_OPTIONS = [
@@ -43,9 +46,114 @@
 
   let currentBook = '';
 
+  // Catalog spells once so book rules can opt into them without duplicating definitions.
+  const SPELL_LIBRARY = {
+    creatureCopy: {
+      key: 'creatureCopy',
+      name: 'Creature Copy',
+      description: 'Copy an enemy you are fighting, matching their Skill and Stamina.',
+      effect: 'log'
+    },
+    esp: {
+      key: 'esp',
+      name: 'E.S.P.',
+      description: 'Psychic mind-control. May provide misleading information.',
+      effect: 'log'
+    },
+    fire: {
+      key: 'fire',
+      name: 'Fire',
+      description: 'All enemies are afraid of fire.',
+      effect: 'log'
+    },
+    foolsGold: {
+      key: 'foolsGold',
+      name: "Fool's Gold",
+      description: 'Turn ordinary rocks into gold temporarily.',
+      effect: 'log'
+    },
+    illusion: {
+      key: 'illusion',
+      name: 'Illusion',
+      description: 'Convincing illusion broken by interaction. Best against intelligent creatures.',
+      effect: 'log'
+    },
+    levitation: {
+      key: 'levitation',
+      name: 'Levitation',
+      description: 'Cast on objects, enemies, or yourself. Controlled while airborne.',
+      effect: 'log'
+    },
+    luck: {
+      key: 'luck',
+      name: 'Luck',
+      description: 'Restore Luck by half of its initial value (rounded down), up to the initial amount.',
+      effect: 'restoreLuck'
+    },
+    shielding: {
+      key: 'shielding',
+      name: 'Shielding',
+      description: 'Invisible shield that prevents touch. Ineffective against magic.',
+      effect: 'log'
+    },
+    skill: {
+      key: 'skill',
+      name: 'Skill',
+      description: 'Restore Stamina by half of its initial value (rounded down), up to the initial amount.',
+      effect: 'restoreStamina'
+    },
+    strength: {
+      key: 'strength',
+      name: 'Strength',
+      description: 'Greatly increases strength, which may be hard to control.',
+      effect: 'log'
+    },
+    weakness: {
+      key: 'weakness',
+      name: 'Weakness',
+      description: 'Makes strong enemies weak, but may not affect all foes.',
+      effect: 'log'
+    }
+  };
+
+  // Keep book-specific toggles modular so future titles can add custom stats or rules.
+  const BOOK_RULES = {
+    'Citadel of Chaos': {
+      supportsPotions: false,
+      supportsMeals: false,
+      extraStats: {
+        magic: {
+          label: 'Magic',
+          roll: () => {
+            const dice = rollDice(2);
+            const total = dice + 6;
+            return { total, detail: `${dice} + 6 = ${total}` };
+          },
+          helper: 'Roll 2D6 + 6'
+        }
+      },
+      spells: [
+        SPELL_LIBRARY.creatureCopy,
+        SPELL_LIBRARY.esp,
+        SPELL_LIBRARY.fire,
+        SPELL_LIBRARY.foolsGold,
+        SPELL_LIBRARY.illusion,
+        SPELL_LIBRARY.levitation,
+        SPELL_LIBRARY.luck,
+        SPELL_LIBRARY.shielding,
+        SPELL_LIBRARY.skill,
+        SPELL_LIBRARY.strength,
+        SPELL_LIBRARY.weakness
+      ],
+      spellLimitStat: 'magic'
+    }
+  };
+
   let enemies = [];
   // Preserve stable enemy identifiers so names do not shift when the list changes.
   let nextEnemyId = 1;
+  let preparedSpells = {};
+  let preparedSpellLimit = 0;
 
   const logEl = document.getElementById('log');
   const logHistory = [];
@@ -57,6 +165,12 @@
   const potionStatus = document.getElementById('potionStatus');
   const usePotionButton = document.getElementById('usePotion');
   const playerModifierChip = document.getElementById('playerModifierChip');
+  const mealControls = document.getElementById('mealControls');
+  const potionControls = document.getElementById('potionControls');
+  const spellsPanel = document.getElementById('spellsPanel');
+  const spellsTable = document.getElementById('spellsTable');
+  const castSpellButton = document.getElementById('castSpell');
+  const spellsHelperText = document.getElementById('spellsHelperText');
 
   // Animation overlay elements for action highlights.
   const animationOverlay = document.getElementById('action-overlay');
@@ -74,13 +188,15 @@
     skill: document.getElementById('skill'),
     stamina: document.getElementById('stamina'),
     luck: document.getElementById('luck'),
+    magic: document.getElementById('magic'),
     meals: document.getElementById('meals')
   };
 
   const startingBadges = {
     skill: document.getElementById('starting-skill'),
     stamina: document.getElementById('starting-stamina'),
-    luck: document.getElementById('starting-luck')
+    luck: document.getElementById('starting-luck'),
+    magic: document.getElementById('starting-magic')
   };
 
   const notes = {
@@ -264,14 +380,35 @@
 
   const updateInitialStatsDisplay = () => {
     const formatStat = (value) => (value ? value : '-');
-    startingBadges.skill.textContent = formatStat(initialStats.skill);
-    startingBadges.stamina.textContent = formatStat(initialStats.stamina);
-    startingBadges.luck.textContent = formatStat(initialStats.luck);
+    if (startingBadges.skill) startingBadges.skill.textContent = formatStat(initialStats.skill);
+    if (startingBadges.stamina) startingBadges.stamina.textContent = formatStat(initialStats.stamina);
+    if (startingBadges.luck) startingBadges.luck.textContent = formatStat(initialStats.luck);
+    if (startingBadges.magic) startingBadges.magic.textContent = formatStat(initialStats.magic);
+  };
+
+  const updateStatVisibility = () => {
+    const hasMagic = Boolean(activeStatConfigs().magic);
+    const magicLabel = document.getElementById('magic-stat');
+    if (magicLabel) {
+      magicLabel.classList.toggle('hidden', !hasMagic);
+    }
   };
 
   const setCurrentBook = (bookName) => {
     currentBook = bookName || '';
   };
+
+  const renderCurrentBook = () => {
+    const baseTitle = 'Fighting Fantasy Companion';
+    document.title = currentBook ? `${currentBook} | ${baseTitle}` : baseTitle;
+  };
+
+  const getActiveBookRules = () => BOOK_RULES[currentBook] || {};
+  const potionsEnabled = () => getActiveBookRules().supportsPotions !== false;
+  const mealsEnabled = () => getActiveBookRules().supportsMeals !== false;
+  const activeSpells = () => Array.isArray(getActiveBookRules().spells) ? getActiveBookRules().spells : [];
+  const activeStatConfigs = () => ({ ...baseStatConfigs, ...(getActiveBookRules().extraStats || {}) });
+  const activeSpellLimitStat = () => getActiveBookRules().spellLimitStat;
 
   const getNotesState = () => ({
     gold: notes.gold.value,
@@ -318,6 +455,99 @@
       });
     }
     renderDecisionLog();
+  };
+
+  const totalPreparedSpells = () => Object.values(preparedSpells).reduce((sum, value) => sum + parseNumber(value, 0, 0, 999), 0);
+
+  const renderSpellsPanel = () => {
+    if (!spellsPanel || !spellsTable) {
+      return;
+    }
+    const spellsAvailable = activeSpells();
+    const supportsSpells = spellsAvailable.length > 0;
+    spellsPanel.classList.toggle('hidden', !supportsSpells);
+    spellsTable.innerHTML = '';
+
+    if (!supportsSpells) {
+      preparedSpells = {};
+      preparedSpellLimit = 0;
+      if (castSpellButton) {
+        castSpellButton.classList.add('hidden');
+      }
+      return;
+    }
+
+    if (castSpellButton) {
+      castSpellButton.classList.remove('hidden');
+    }
+
+    const activePrepared = Object.entries(preparedSpells)
+      .map(([key, count]) => {
+        const spellDef = spellsAvailable.find((spell) => spell.key === key);
+        return spellDef ? { ...spellDef, count } : null;
+      })
+      .filter((entry) => entry && entry.count > 0);
+
+    if (!activePrepared.length) {
+      const empty = document.createElement('p');
+      empty.className = 'spells-empty';
+      empty.textContent = 'No spells prepared.';
+      spellsTable.appendChild(empty);
+      if (castSpellButton) {
+        castSpellButton.disabled = true;
+      }
+    } else {
+      activePrepared.forEach((spell) => {
+        const row = document.createElement('div');
+        row.className = 'spell-row';
+
+        const text = document.createElement('div');
+        const title = document.createElement('h5');
+        title.textContent = spell.name;
+        text.appendChild(title);
+        const description = document.createElement('p');
+        description.textContent = spell.description;
+        text.appendChild(description);
+
+        const count = document.createElement('div');
+        count.className = 'spell-count';
+        count.textContent = `x${spell.count}`;
+
+        row.appendChild(text);
+        row.appendChild(count);
+        spellsTable.appendChild(row);
+      });
+      if (castSpellButton) {
+        castSpellButton.disabled = activePrepared.length === 0;
+      }
+    }
+
+    if (spellsHelperText) {
+      const effectiveLimit = preparedSpellLimit || initialStats.magic || player.magic || 0;
+      const total = totalPreparedSpells();
+      spellsHelperText.textContent = `Prepared ${total}/${effectiveLimit} spells`;
+    }
+  };
+
+  const resetSpells = () => {
+    preparedSpells = {};
+    preparedSpellLimit = 0;
+    renderSpellsPanel();
+  };
+
+  const applySpellsState = (savedSpells = {}) => {
+    preparedSpellLimit = parseNumber(savedSpells.limit, initialStats.magic || player.magic || 0, 0, 999);
+    preparedSpells = {};
+    const allowed = new Set(activeSpells().map((spell) => spell.key));
+    if (savedSpells.prepared && typeof savedSpells.prepared === 'object') {
+      Object.entries(savedSpells.prepared).forEach(([key, value]) => {
+        const amount = parseNumber(value, 0, 0, 999);
+        if (amount > 0 && allowed.has(key)) {
+          preparedSpells[key] = amount;
+        }
+      });
+    }
+    renderSpellsPanel();
   };
 
   const applyEnemiesState = (savedEnemies = []) => {
@@ -368,14 +598,22 @@
       0,
       999
     );
+    const safeMaxMagic = parseNumber(
+      savedPlayer.maxMagic,
+      parseNumber(savedPlayer.magic, player.maxMagic || 0, 0, 999),
+      0,
+      999
+    );
 
     player.maxSkill = safeMaxSkill;
     player.maxStamina = safeMaxStamina;
     player.maxLuck = safeMaxLuck;
+    player.maxMagic = safeMaxMagic;
 
     player.skill = clamp(parseNumber(savedPlayer.skill, player.skill || safeMaxSkill, 0, 999), 0, player.maxSkill || 999);
     player.stamina = clamp(parseNumber(savedPlayer.stamina, player.stamina || safeMaxStamina, 0, 999), 0, player.maxStamina || 999);
     player.luck = clamp(parseNumber(savedPlayer.luck, player.luck || safeMaxLuck, 0, 999), 0, player.maxLuck || 999);
+    player.magic = clamp(parseNumber(savedPlayer.magic, player.magic || safeMaxMagic, 0, 999), 0, player.maxMagic || 999);
     player.meals = parseNumber(savedPlayer.meals, player.meals, 0, 999);
 
     player.potion = typeof savedPlayer.potion === 'string' ? savedPlayer.potion : null;
@@ -384,10 +622,12 @@
     initialStats.skill = parseNumber(savedInitial.skill, initialStats.skill || 0, 0, 999);
     initialStats.stamina = parseNumber(savedInitial.stamina, initialStats.stamina || 0, 0, 999);
     initialStats.luck = parseNumber(savedInitial.luck, initialStats.luck || 0, 0, 999);
+    initialStats.magic = parseNumber(savedInitial.magic, initialStats.magic || 0, 0, 999);
     updateInitialStatsDisplay();
 
     renderPotionStatus();
     syncPlayerInputs();
+    updateStatVisibility();
   };
 
   const applyPlayerModifiers = (savedModifiers = {}) => {
@@ -398,7 +638,7 @@
   };
 
   const buildSavePayload = (pageNumberLabel) => ({
-    version: 4,
+    version: 5,
     savedAt: new Date().toISOString(),
     pageNumber: pageNumberLabel,
     book: currentBook || null,
@@ -408,7 +648,11 @@
     notes: getNotesState(),
     enemies: enemies.map((enemy) => ({ ...enemy })),
     log: logHistory.map((entry) => ({ ...entry })),
-    decisionLog: decisionLogHistory.map((entry) => ({ ...entry }))
+    decisionLog: decisionLogHistory.map((entry) => ({ ...entry })),
+    spells: {
+      prepared: { ...preparedSpells },
+      limit: preparedSpellLimit
+    }
   });
 
   // Produce a filesystem-safe timestamp that is still easy to read in save filenames.
@@ -638,6 +882,7 @@
         return;
       }
       setCurrentBook(chosen);
+      renderCurrentBook();
       logMessage(`Adventure set for ${chosen}.`, 'info');
       close();
       if (onSelected) {
@@ -664,12 +909,20 @@
   // Restore core data in a predictable order so fields sync correctly.
   const applySaveData = (data) => {
     setCurrentBook(typeof data.book === 'string' ? data.book : '');
+    renderCurrentBook();
+    updateStatVisibility();
     applyPlayerState(data.player, data.initialStats);
     applyPlayerModifiers(data.playerModifiers || {});
     applyNotesState(data.notes);
     applyEnemiesState(data.enemies);
     applyLogState(Array.isArray(data.log) ? data.log : []);
     applyDecisionLogState(Array.isArray(data.decisionLog) ? data.decisionLog : []);
+    if (data.spells) {
+      applySpellsState(data.spells);
+    } else {
+      resetSpells();
+    }
+    updateResourceVisibility();
     const bookDetail = currentBook ? ` for ${currentBook}` : '';
     logMessage(`Save loaded${data.pageNumber ? ` from Page ${data.pageNumber}` : ''}${bookDetail}.`, 'success');
   };
@@ -1005,6 +1258,9 @@
     inputs.skill.value = player.skill;
     inputs.stamina.value = player.stamina;
     inputs.luck.value = player.luck;
+    if (inputs.magic) {
+      inputs.magic.value = player.magic;
+    }
     inputs.meals.value = player.meals;
     renderPotionStatus();
     renderPlayerModifierSummary();
@@ -1031,9 +1287,21 @@
       player.meals = clamp(parseInt(inputs.meals.value, 10) || 0, 0, 999);
       syncPlayerInputs();
     });
+    if (inputs.magic) {
+      inputs.magic.addEventListener('change', () => {
+        player.magic = clamp(parseInt(inputs.magic.value, 10) || 0, 0, 999);
+        player.maxMagic = Math.max(player.maxMagic, player.magic);
+        inputs.magic.value = player.magic;
+      });
+    }
   };
 
   const renderPotionStatus = () => {
+    if (!potionsEnabled()) {
+      potionStatus.textContent = 'Potions are not available for this book.';
+      usePotionButton.disabled = true;
+      return;
+    }
     if (!player.potion) {
       potionStatus.textContent = 'No potion selected.';
       usePotionButton.disabled = true;
@@ -1044,7 +1312,7 @@
     usePotionButton.disabled = player.potionUsed;
   };
 
-  const statConfigs = {
+  const baseStatConfigs = {
     skill: {
       label: 'Skill',
       roll: () => {
@@ -1075,7 +1343,7 @@
   };
 
   // Allow the player to roll each stat multiple times before accepting the spread.
-  const showStatRollDialog = (onComplete) => {
+  const showStatRollDialog = (statSet, onComplete) => {
     const { modal, close } = createModal('Roll Your Stats', 'Roll each stat as many times as you like, then start your adventure.');
 
     const grid = document.createElement('div');
@@ -1089,13 +1357,13 @@
     cancelButton.className = 'btn btn-negative';
     cancelButton.textContent = 'Cancel';
 
-    const currentRolls = { skill: null, stamina: null, luck: null };
+    const currentRolls = Object.keys(statSet).reduce((acc, key) => ({ ...acc, [key]: null }), {});
 
     const updateApplyState = () => {
       applyButton.disabled = !Object.values(currentRolls).every((value) => value !== null);
     };
 
-    Object.entries(statConfigs).forEach(([key, config]) => {
+    Object.entries(statSet).forEach(([key, config]) => {
       const card = document.createElement('div');
       card.className = 'option-card';
 
@@ -1144,6 +1412,97 @@
       close();
       onComplete(currentRolls);
     });
+  };
+
+  const showSpellSelectionDialog = ({ limit, spells, onConfirm, onCancel }) => {
+    const { modal, close } = createModal(
+      'Prepare Your Spells',
+      'Spend your Magic to select spells for this adventure.'
+    );
+
+    const grid = document.createElement('div');
+    grid.className = 'grid-three';
+
+    const summary = document.createElement('p');
+    summary.className = 'helper-text';
+
+    const selection = {};
+    const safeLimit = Math.max(0, limit || 0);
+
+    const updateSummary = () => {
+      const total = Object.values(selection).reduce((sum, value) => sum + (value || 0), 0);
+      const remaining = Math.max(0, safeLimit - total);
+      summary.textContent = `Spells remaining: ${remaining} (Limit: ${safeLimit})`;
+      confirmButton.disabled = total > safeLimit;
+    };
+
+    spells.forEach((spell) => {
+      selection[spell.key] = 0;
+      const card = document.createElement('div');
+      card.className = 'option-card';
+
+      const title = document.createElement('h4');
+      title.textContent = spell.name;
+      card.appendChild(title);
+
+      const description = document.createElement('p');
+      description.textContent = spell.description;
+      card.appendChild(description);
+
+      const inputLabel = document.createElement('label');
+      inputLabel.textContent = 'Prepared copies';
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.min = '0';
+      input.max = String(safeLimit);
+      input.value = '0';
+      input.addEventListener('change', () => {
+        selection[spell.key] = parseNumber(input.value, 0, 0, 999);
+        input.value = selection[spell.key];
+        updateSummary();
+      });
+
+      inputLabel.appendChild(input);
+      card.appendChild(inputLabel);
+      grid.appendChild(card);
+    });
+
+    modal.appendChild(grid);
+    modal.appendChild(summary);
+
+    const actions = document.createElement('div');
+    actions.className = 'modal-actions';
+    const cancelButton = document.createElement('button');
+    cancelButton.className = 'btn btn-negative';
+    cancelButton.textContent = 'Cancel';
+    const confirmButton = document.createElement('button');
+    confirmButton.className = 'btn btn-positive';
+    confirmButton.textContent = 'Confirm Spells';
+    confirmButton.disabled = false;
+
+    cancelButton.addEventListener('click', () => {
+      close();
+      if (onCancel) {
+        onCancel();
+      }
+    });
+
+    confirmButton.addEventListener('click', () => {
+      const total = Object.values(selection).reduce((sum, value) => sum + (value || 0), 0);
+      if (total > safeLimit) {
+        alert('You selected more spells than your Magic allows.');
+        return;
+      }
+      close();
+      if (onConfirm) {
+        onConfirm(selection, safeLimit);
+      }
+    });
+
+    actions.appendChild(cancelButton);
+    actions.appendChild(confirmButton);
+    modal.appendChild(actions);
+    updateSummary();
   };
 
   const potionOptions = [
@@ -1394,7 +1753,114 @@
   };
 
   // Player interactions ----------------------------------------------------
+  const applySpellEffect = (spell) => {
+    if (!spell) return;
+    if (spell.effect === 'restoreLuck') {
+      const restoreAmount = Math.floor((initialStats.luck || 0) / 2);
+      const before = player.luck;
+      const maxLuck = initialStats.luck || player.maxLuck || before;
+      player.luck = Math.min(maxLuck, player.luck + restoreAmount);
+      syncPlayerInputs();
+      const gained = player.luck - before;
+      logMessage(
+        gained > 0
+          ? `${spell.name} restores ${gained} Luck (up to ${maxLuck}).`
+          : `${spell.name} has no effect; Luck is already at its starting value.`,
+        gained > 0 ? 'success' : 'info'
+      );
+      return;
+    }
+
+    if (spell.effect === 'restoreStamina') {
+      const restoreAmount = Math.floor((initialStats.stamina || 0) / 2);
+      const before = player.stamina;
+      const maxStamina = initialStats.stamina || player.maxStamina || before;
+      player.stamina = Math.min(maxStamina, player.stamina + restoreAmount);
+      syncPlayerInputs();
+      const gained = player.stamina - before;
+      logMessage(
+        gained > 0
+          ? `${spell.name} restores ${gained} Stamina (up to ${maxStamina}).`
+          : `${spell.name} has no effect; Stamina is already at its starting value.`,
+        gained > 0 ? 'success' : 'info'
+      );
+      return;
+    }
+
+    logMessage(`Spell cast: ${spell.name}. ${spell.description}`, 'info');
+  };
+
+  const castSpell = (spellKey) => {
+    const spellsAvailable = activeSpells();
+    const spell = spellsAvailable.find((entry) => entry.key === spellKey);
+    if (!spell) {
+      alert('That spell is not available for this adventure.');
+      return;
+    }
+    const remaining = parseNumber(preparedSpells[spellKey], 0, 0, 999);
+    if (remaining <= 0) {
+      alert('No prepared copies of that spell remain.');
+      return;
+    }
+    preparedSpells[spellKey] = remaining - 1;
+    applySpellEffect(spell);
+    renderSpellsPanel();
+  };
+
+  const showCastSpellDialog = () => {
+    const spellsAvailable = activeSpells().filter((spell) => parseNumber(preparedSpells[spell.key], 0, 0, 999) > 0);
+    const { modal, close } = createModal('Cast a Spell', 'Choose a prepared spell to use now.', { compact: true });
+
+    if (spellsAvailable.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'spells-empty';
+      empty.textContent = 'You have no prepared spells to cast.';
+      modal.appendChild(empty);
+    } else {
+      const grid = document.createElement('div');
+      grid.className = 'grid-three';
+      spellsAvailable.forEach((spell) => {
+        const card = document.createElement('div');
+        card.className = 'option-card';
+
+        const title = document.createElement('h4');
+        title.textContent = `${spell.name} (x${preparedSpells[spell.key]})`;
+        card.appendChild(title);
+
+        const description = document.createElement('p');
+        description.textContent = spell.description;
+        card.appendChild(description);
+
+        const castButton = document.createElement('button');
+        castButton.className = 'btn btn-positive';
+        castButton.textContent = 'Cast Spell';
+        castButton.addEventListener('click', () => {
+          castSpell(spell.key);
+          close();
+        });
+
+        card.appendChild(castButton);
+        grid.appendChild(card);
+      });
+      modal.appendChild(grid);
+    }
+
+    const actions = document.createElement('div');
+    actions.className = 'modal-actions';
+    const closeButton = document.createElement('button');
+    closeButton.className = 'btn btn-negative';
+    closeButton.textContent = 'Close';
+    closeButton.addEventListener('click', close);
+
+    actions.appendChild(closeButton);
+    modal.appendChild(actions);
+  };
+
   const handleEatMeal = () => {
+    if (!mealsEnabled()) {
+      alert('Meals are not available for this adventure.');
+      return;
+    }
     if (player.meals <= 0) {
       alert('No meals left.');
       return;
@@ -1552,6 +2018,30 @@
     } else {
       playerModifierChip.removeAttribute('title');
     }
+  };
+
+  // Book-specific rules can disable potions, meals, or spells. Keep the UI in sync with the active book.
+  const updateResourceVisibility = () => {
+    updateStatVisibility();
+    const potionsAvailable = potionsEnabled();
+    if (potionControls) {
+      potionControls.classList.toggle('hidden', !potionsAvailable);
+    }
+    if (!potionsAvailable) {
+      player.potion = null;
+      player.potionUsed = false;
+    }
+
+    const mealsAvailable = mealsEnabled();
+    if (mealControls) {
+      mealControls.classList.toggle('hidden', !mealsAvailable);
+    }
+    if (!mealsAvailable) {
+      player.meals = 0;
+    }
+    syncPlayerInputs();
+    renderPotionStatus();
+    renderSpellsPanel();
   };
 
   // Keep enemy damage calculations and UI summaries in sync by routing everything through
@@ -1981,6 +2471,10 @@
 
   // Game setup ------------------------------------------------------------
   const applyPotion = () => {
+    if (!potionsEnabled()) {
+      alert('Potions cannot be used for this adventure.');
+      return;
+    }
     if (!player.potion || player.potionUsed) {
       alert('No potion available or it has already been used.');
       return;
@@ -2028,14 +2522,18 @@
 
   const newGame = () => {
     const startStatRolling = () => {
-      // Do not finalize state until the player confirms their potion to avoid recursion loops on cancel.
-      showStatRollDialog((rolls) => {
-        const applyNewGameState = (potionChoice) => {
+      const statsForBook = activeStatConfigs();
+      // Do not finalize state until the player confirms their potion or spells to avoid recursion loops on cancel.
+      showStatRollDialog(statsForBook, (rolls) => {
+        const spellLimitKey = activeSpellLimitStat();
+        const spellLimit = spellLimitKey ? parseNumber(rolls[spellLimitKey], 0, 0, 999) : 0;
+        const finalizeNewGame = (potionChoice, spellSelection, limit) => {
           player.skill = player.maxSkill = rolls.skill;
           player.stamina = player.maxStamina = rolls.stamina;
           player.luck = player.maxLuck = rolls.luck;
-          player.meals = 10;
-          player.potion = potionChoice;
+          player.magic = player.maxMagic = rolls.magic || 0;
+          player.meals = mealsEnabled() ? 10 : 0;
+          player.potion = potionsEnabled() ? potionChoice : null;
           player.potionUsed = false;
           playerModifiers.damageDone = 0;
           playerModifiers.damageReceived = 0;
@@ -2044,8 +2542,11 @@
           initialStats.skill = rolls.skill;
           initialStats.stamina = rolls.stamina;
           initialStats.luck = rolls.luck;
+          initialStats.magic = rolls.magic || 0;
           updateInitialStatsDisplay();
 
+          preparedSpells = spellSelection || {};
+          preparedSpellLimit = parseNumber(limit ?? spellLimit, spellLimit, 0, 999);
           resetNotes();
 
           // Starting fresh should leave the adventure log empty so previous runs do not leak context.
@@ -2061,17 +2562,46 @@
           const bookLabel = currentBook || 'Unknown Book';
           logMessage(`New game started for ${bookLabel}. Roll results applied.`, 'success');
           renderPotionStatus();
+          renderSpellsPanel();
+          updateResourceVisibility();
           showActionVisual('newGame');
         };
 
-        selectPotion((choice) => applyNewGameState(choice), () => {
-          logMessage('New game cancelled before choosing a potion. Current adventure continues.', 'warning');
-        });
+        const startPotionFlow = (spellSelection, limitValue = spellLimit) => {
+          if (!potionsEnabled()) {
+            finalizeNewGame(null, spellSelection, limitValue);
+            return;
+          }
+          selectPotion(
+            (choice) => finalizeNewGame(choice, spellSelection, limitValue),
+            () => {
+              logMessage('New game cancelled before choosing a potion. Current adventure continues.', 'warning');
+            }
+          );
+        };
+
+        const startSpellFlow = () => {
+          const spellsForBook = activeSpells();
+          if (!spellsForBook.length) {
+            startPotionFlow({});
+            return;
+          }
+          showSpellSelectionDialog({
+            limit: spellLimit,
+            spells: spellsForBook,
+            onConfirm: (selection, limitValue) => startPotionFlow(selection, limitValue),
+            onCancel: () => logMessage('New game cancelled before selecting spells. Current adventure continues.', 'warning')
+          });
+        };
+
+        startSpellFlow();
       });
     };
 
     showBookDialog(
       () => {
+        updateResourceVisibility();
+        updateStatVisibility();
         startStatRolling();
       },
       () => {
@@ -2168,12 +2698,23 @@
 
   document.getElementById('addEnemy').addEventListener('click', () => addEnemy());
   document.getElementById('addDecision').addEventListener('click', showDecisionDialog);
+  if (castSpellButton) {
+    castSpellButton.addEventListener('click', () => {
+      if (!activeSpells().length) {
+        alert('Spells are not available for this adventure.');
+        return;
+      }
+      showCastSpellDialog();
+    });
+  }
   bindPlayerInputs();
   renderEnemies();
 
   updateInitialStatsDisplay();
   renderCurrentBook();
   renderPotionStatus();
+  updateResourceVisibility();
+  renderSpellsPanel();
   syncPlayerInputs();
   renderLog();
   renderDecisionLog();
