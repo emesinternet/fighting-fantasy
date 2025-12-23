@@ -1971,13 +1971,13 @@
       return;
     }
 
-    if (key === 'f10') {
+    if (key === 'f5') {
       event.preventDefault();
       showSaveDialog();
       return;
     }
 
-    if (key === 'f12') {
+    if (key === 'f9') {
       event.preventDefault();
       loadFileInput.click();
       return;

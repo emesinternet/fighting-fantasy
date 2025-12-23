@@ -16,5 +16,5 @@ Single-page web sheet for Fighting Fantasy gamebooks. Track player stats, manage
 - **1–9:** Attack the corresponding enemy slot.
 - **R:** Open the General Roll dialog for custom dice.
 - **T:** Test Luck.
-- **F10:** Save game.
-- **F12:** Load game.
+- **F5:** Save game.
+- **F9:** Load game.
