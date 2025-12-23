@@ -48,6 +48,12 @@
   const animationImage = document.getElementById('action-image');
   const animationText = document.getElementById('action-text');
   const animationTimers = [];
+  const ANIMATION_ENTRY_DURATION_MS = 900;
+  const ANIMATION_HOLD_DURATION_MS = 2000;
+  const ANIMATION_FADE_DURATION_MS = 360;
+  const ANIMATION_TOTAL_DURATION_MS = ANIMATION_ENTRY_DURATION_MS
+    + ANIMATION_HOLD_DURATION_MS
+    + ANIMATION_FADE_DURATION_MS;
 
   const inputs = {
     skill: document.getElementById('skill'),
@@ -626,12 +632,11 @@
       animationText.classList.add('animate-in');
     }, 220));
 
-    const entryDurationMs = 900; // Covers image and text stagger.
-    const holdDurationMs = 2000;
-    const fadeDurationMs = 360;
-
-    animationTimers.push(setTimeout(fadeOutAnimation, entryDurationMs + holdDurationMs));
-    animationTimers.push(setTimeout(resetAnimationClasses, entryDurationMs + holdDurationMs + fadeDurationMs));
+    animationTimers.push(setTimeout(fadeOutAnimation, ANIMATION_ENTRY_DURATION_MS + ANIMATION_HOLD_DURATION_MS));
+    animationTimers.push(setTimeout(
+      resetAnimationClasses,
+      ANIMATION_ENTRY_DURATION_MS + ANIMATION_HOLD_DURATION_MS + ANIMATION_FADE_DURATION_MS
+    ));
   };
 
   // Map game moments to inline action art so the overlay always reinforces the latest move.
@@ -676,6 +681,11 @@
       alt: 'The hero misses an enemy attack',
       subline: 'Your strike misses'
     },
+    playerFailAttack: {
+      src: 'img/player-fail-attack.png',
+      alt: 'The hero stumbles after a failed attack',
+      subline: 'Your swing leaves you wide open.'
+    },
     defeatEnemy: {
       src: 'img/player-defeat-enemy.png',
       alt: 'The hero fells an enemy',
@@ -719,6 +729,12 @@
     animationText.textContent = subline;
     playActionAnimation();
   };
+
+  // Give callers a simple way to wait for the overlay to finish before continuing a flow.
+  const showActionVisualAndWait = (key, overrides = {}) => new Promise((resolve) => {
+    showActionVisual(key, overrides);
+    setTimeout(resolve, ANIMATION_TOTAL_DURATION_MS);
+  });
 
   animationOverlay.addEventListener('click', closeAnimationOverlayInstantly);
 
@@ -1802,6 +1818,9 @@
       player.stamina = clamp(player.stamina - damageToPlayer, 0, player.maxStamina);
       syncPlayerInputs();
       logMessage(`${enemyLabel} hits you for ${damageToPlayer} damage.`, 'danger');
+
+      await showActionVisualAndWait('playerFailAttack');
+
       const wantsLuck = confirm('You took damage. Use Luck to reduce it?');
       if (wantsLuck) {
         testLuck({ type: 'playerHitByEnemy', index });
