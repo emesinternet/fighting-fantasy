@@ -1609,10 +1609,11 @@
     apply.textContent = 'Apply';
     apply.addEventListener('click', () => {
       const updated = normalizeEnemyModifiers({
+        // Preserve delta mode so user-entered numbers are treated as adjustments, not
+        // absolute legacy values that subtract the 2-damage Fighting Fantasy baseline.
+        ...modifiers,
         damageDealt: inputsMap['damage-dealt'].value,
-        damageReceived: inputsMap['damage-received'].value,
-        playerDamageBonus: modifiers.playerDamageBonus,
-        playerDamageTakenBonus: modifiers.playerDamageTakenBonus
+        damageReceived: inputsMap['damage-received'].value
       });
 
       const changed = ['damageDealt', 'damageReceived', 'playerDamageBonus', 'playerDamageTakenBonus']
