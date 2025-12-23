@@ -21,6 +21,8 @@ Single-page web sheet for Fighting Fantasy gamebooks. Track player stats, manage
 - Enemy stat inputs now share the same clamped number handling, making quick edits more consistent.
 - Action overlays scale down on narrower screens while keeping the art and text legible.
 - Panels and chips use shared radius and shadow tokens for a more unified look.
+- Dropdown carets are centered on custom selects for clearer alignment with the label text.
+- Modals now cap at 800px wide (480px for compact dialogs) to keep prompts comfortable on large screens.
 
 ## Keyboard shortcuts
 - **D:** Open Add Decision (Enter saves; Shift+Enter adds a newline in the decision text).
