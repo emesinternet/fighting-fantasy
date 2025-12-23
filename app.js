@@ -89,6 +89,13 @@
     equipment: document.getElementById('equipment')
   };
 
+  // Keep note fields tidy with a shared reset helper for new games.
+  const resetNotes = () => {
+    Object.values(notes).forEach((field) => {
+      field.value = '';
+    });
+  };
+
   // Utility helpers --------------------------------------------------------
   const rollDice = (count) => Array.from({ length: count }, () => Math.floor(Math.random() * 6) + 1)
     .reduce((sum, value) => sum + value, 0);
@@ -1594,6 +1601,27 @@
 
   const calculateDamageToPlayer = (enemy) => getEnemyDamageProfile(enemy).damageToPlayer;
 
+  // Build a consistent labeled number input for enemy stat editing.
+  const createEnemyStatInput = ({ label, value, onChange }) => {
+    const wrapper = document.createElement('label');
+    wrapper.className = 'inline-label';
+    wrapper.textContent = `${label} `;
+
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.value = value;
+    input.max = 999;
+    input.min = 0;
+    input.addEventListener('change', () => {
+      const safeValue = parseNumber(input.value, value, 0, 999);
+      onChange(safeValue);
+      input.value = safeValue;
+    });
+
+    wrapper.appendChild(input);
+    return wrapper;
+  };
+
   // Enemy handling --------------------------------------------------------
   function renderEnemies() {
     const container = document.getElementById('monsterList');
@@ -1622,36 +1650,22 @@
       const stats = document.createElement('div');
       stats.className = 'enemy-stats';
 
-      const skillLabel = document.createElement('label');
-      skillLabel.className = 'inline-label';
-      skillLabel.textContent = 'Skill ';
-      const skillInput = document.createElement('input');
-      skillInput.type = 'number';
-      skillInput.value = enemy.skill;
-      skillInput.max = 999;
-      skillInput.min = 0;
-      skillInput.addEventListener('change', () => {
-        const nextSkill = clamp(parseInt(skillInput.value, 10) || 0, 0, 999);
-        enemy.skill = nextSkill;
-        skillInput.value = nextSkill;
+      const skillLabel = createEnemyStatInput({
+        label: 'Skill',
+        value: enemy.skill,
+        onChange: (nextSkill) => {
+          enemy.skill = nextSkill;
+        }
       });
-      skillLabel.appendChild(skillInput);
       stats.appendChild(skillLabel);
 
-      const staminaLabel = document.createElement('label');
-      staminaLabel.className = 'inline-label';
-      staminaLabel.textContent = 'Stamina ';
-      const staminaInput = document.createElement('input');
-      staminaInput.type = 'number';
-      staminaInput.value = enemy.stamina;
-      staminaInput.max = 999;
-      staminaInput.min = 0;
-      staminaInput.addEventListener('change', () => {
-        const nextStamina = clamp(parseInt(staminaInput.value, 10) || 0, 0, 999);
-        enemy.stamina = nextStamina;
-        staminaInput.value = nextStamina;
+      const staminaLabel = createEnemyStatInput({
+        label: 'Stamina',
+        value: enemy.stamina,
+        onChange: (nextStamina) => {
+          enemy.stamina = nextStamina;
+        }
       });
-      staminaLabel.appendChild(staminaInput);
       stats.appendChild(staminaLabel);
 
       header.appendChild(stats);
@@ -2032,9 +2046,7 @@
           initialStats.luck = rolls.luck;
           updateInitialStatsDisplay();
 
-          document.getElementById('gold').value = '';
-          document.getElementById('treasure').value = '';
-          document.getElementById('equipment').value = '';
+          resetNotes();
 
           // Starting fresh should leave the adventure log empty so previous runs do not leak context.
           logHistory.length = 0;
