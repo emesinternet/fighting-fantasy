@@ -1415,19 +1415,21 @@
   };
 
   const summarizeEnemyModifiers = (enemy) => {
-    const { modifiers, damageToEnemy, damageToPlayer } = getEnemyDamageProfile(enemy);
+    const modifiers = getEnemyModifiers(enemy);
     const pieces = [];
 
-    const playerHitsEnemy = modifiers.damageReceived || modifiers.playerDamageBonus || playerModifiers.damageDone;
-    const enemyHitsPlayer = modifiers.damageDealt || modifiers.playerDamageTakenBonus || playerModifiers.damageReceived;
-
-    if (playerHitsEnemy) {
-      const emoji = damageToEnemy >= BASE_ENEMY_DAMAGE ? '🗡️' : '🛡️';
-      pieces.push(`${emoji}${damageToEnemy}`);
+    // Show only the enemy-specific deltas so player-wide modifiers do not leak into the enemy chips.
+    if (modifiers.damageDealt) {
+      const prefix = modifiers.damageDealt > 0 ? '+' : '';
+      pieces.push(`🗡️${prefix}${modifiers.damageDealt}`);
     }
-    if (enemyHitsPlayer) {
-      const emoji = damageToPlayer >= BASE_ENEMY_DAMAGE ? '🗡️' : '💀';
-      pieces.push(`${emoji}${damageToPlayer}`);
+
+    if (modifiers.damageReceived) {
+      if (modifiers.damageReceived > 0) {
+        pieces.push(`💀+${modifiers.damageReceived}`);
+      } else {
+        pieces.push(`🛡️+${Math.abs(modifiers.damageReceived)}`);
+      }
     }
 
     return pieces.join(' ');
@@ -1612,6 +1614,15 @@
         playerDamageBonus: modifiers.playerDamageBonus,
         playerDamageTakenBonus: modifiers.playerDamageTakenBonus
       });
+
+      const changed = ['damageDealt', 'damageReceived', 'playerDamageBonus', 'playerDamageTakenBonus']
+        .some((key) => updated[key] !== modifiers[key]);
+
+      if (!changed) {
+        close();
+        return;
+      }
+
       enemy.modifiers = updated;
       renderEnemies();
       logMessage(`${formatEnemyName(enemy)} modifiers updated.`, 'info');
