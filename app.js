@@ -598,6 +598,10 @@
     clearAnimationTimers();
     resetAnimationClasses();
 
+    // Reset overlay visibility up front so new animations never overlap with a fading one.
+    animationOverlay.classList.remove('is-visible');
+    animationOverlay.setAttribute('aria-hidden', 'true');
+
     // Restart keyframes reliably on consecutive plays.
     void animationImage.offsetWidth; // eslint-disable-line no-unused-expressions
     void animationText.offsetWidth; // eslint-disable-line no-unused-expressions
@@ -1388,44 +1392,50 @@
     playerModifierChip.textContent = parts.length ? `Hero mods: ${parts.join(' ')}` : '';
   };
 
-  const summarizeEnemyModifiers = (enemy) => {
+  // Keep enemy damage calculations and UI summaries in sync by routing everything through
+  // a shared profile that applies modifiers as deltas to the Fighting Fantasy base damage.
+  const getEnemyDamageProfile = (enemy) => {
     const modifiers = getEnemyModifiers(enemy);
-    const damageFromPlayer = BASE_ENEMY_DAMAGE
-      + modifiers.damageReceived
-      + modifiers.playerDamageBonus
-      + playerModifiers.damageDone;
-    const damageToPlayer = BASE_ENEMY_DAMAGE
-      + modifiers.damageDealt
-      + modifiers.playerDamageTakenBonus
-      + playerModifiers.damageReceived;
+    const damageToEnemy = Math.max(
+      0,
+      BASE_ENEMY_DAMAGE
+        + modifiers.damageReceived
+        + playerModifiers.damageDone
+        + modifiers.playerDamageBonus
+    );
+    const damageToPlayer = Math.max(
+      0,
+      BASE_ENEMY_DAMAGE
+        + modifiers.damageDealt
+        + playerModifiers.damageReceived
+        + modifiers.playerDamageTakenBonus
+    );
 
+    return { modifiers, damageToEnemy, damageToPlayer };
+  };
+
+  const summarizeEnemyModifiers = (enemy) => {
+    const { modifiers, damageToEnemy, damageToPlayer } = getEnemyDamageProfile(enemy);
     const pieces = [];
-    if (modifiers.damageReceived || modifiers.playerDamageBonus || playerModifiers.damageDone) {
-      pieces.push(`🛡️${Math.max(0, damageFromPlayer)}`);
+
+    const playerHitsEnemy = modifiers.damageReceived || modifiers.playerDamageBonus || playerModifiers.damageDone;
+    const enemyHitsPlayer = modifiers.damageDealt || modifiers.playerDamageTakenBonus || playerModifiers.damageReceived;
+
+    if (playerHitsEnemy) {
+      const emoji = damageToEnemy >= BASE_ENEMY_DAMAGE ? '🗡️' : '🛡️';
+      pieces.push(`${emoji}${damageToEnemy}`);
     }
-    if (modifiers.damageDealt || modifiers.playerDamageTakenBonus || playerModifiers.damageReceived) {
-      pieces.push(`🗡️${Math.max(0, damageToPlayer)}`);
+    if (enemyHitsPlayer) {
+      const emoji = damageToPlayer >= BASE_ENEMY_DAMAGE ? '🗡️' : '💀';
+      pieces.push(`${emoji}${damageToPlayer}`);
     }
+
     return pieces.join(' ');
   };
 
-  const calculateDamageToEnemy = (enemy) => {
-    const modifiers = getEnemyModifiers(enemy);
-    const adjusted = BASE_ENEMY_DAMAGE
-      + modifiers.damageReceived
-      + playerModifiers.damageDone
-      + modifiers.playerDamageBonus;
-    return Math.max(0, adjusted);
-  };
+  const calculateDamageToEnemy = (enemy) => getEnemyDamageProfile(enemy).damageToEnemy;
 
-  const calculateDamageToPlayer = (enemy) => {
-    const modifiers = getEnemyModifiers(enemy);
-    const adjusted = BASE_ENEMY_DAMAGE
-      + modifiers.damageDealt
-      + playerModifiers.damageReceived
-      + modifiers.playerDamageTakenBonus;
-    return Math.max(0, adjusted);
-  };
+  const calculateDamageToPlayer = (enemy) => getEnemyDamageProfile(enemy).damageToPlayer;
 
   // Enemy handling --------------------------------------------------------
   function renderEnemies() {

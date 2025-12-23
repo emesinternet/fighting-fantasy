@@ -8,7 +8,10 @@ Single-page web sheet for Fighting Fantasy gamebooks. Track player stats, manage
 
 ## Combat modifiers
 - **Player:** A **Modifier** button beside Test Your Luck opens options for damage done, damage received, and bonus Skill to attack rolls. Active boosts appear with emoji cues beside the stats.
-- **Enemies:** Each enemy has a **Modifier** button beside Attack to tune how much damage it deals or takes as adjustments to the standard 2 damage. Emoji badges on the enemy show the current values.
+- **Enemies:** Each enemy has a **Modifier** button beside Attack to tune how much damage it deals or takes as adjustments to the standard 2 damage. Emoji badges on the enemy show active modifiers in line with the combat math.
+
+## Action art
+- Only one animation plays at a time; each new event resets the overlay before showing the latest action art.
 
 ## Logs
 - **Adventure Log:** Scrollable list sized for five entries with visible timestamps to keep recent actions easy to follow.

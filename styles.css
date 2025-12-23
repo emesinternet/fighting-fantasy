@@ -179,7 +179,7 @@ input[type='number'] {
 }
 
 .justify-center {
-  justify-content: center;
+  justify-items: center;
 }
 
 .stat-actions {
