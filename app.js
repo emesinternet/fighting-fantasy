@@ -57,7 +57,6 @@
   const potionStatus = document.getElementById('potionStatus');
   const usePotionButton = document.getElementById('usePotion');
   const playerModifierChip = document.getElementById('playerModifierChip');
-  const currentBookLabel = document.getElementById('currentBookLabel');
 
   // Animation overlay elements for action highlights.
   const animationOverlay = document.getElementById('action-overlay');
@@ -263,16 +262,8 @@
     startingBadges.luck.textContent = formatStat(initialStats.luck);
   };
 
-  const renderCurrentBook = () => {
-    if (!currentBookLabel) {
-      return;
-    }
-    currentBookLabel.textContent = currentBook ? `Book: ${currentBook}` : 'No book selected';
-  };
-
   const setCurrentBook = (bookName) => {
     currentBook = bookName || '';
-    renderCurrentBook();
   };
 
   const getNotesState = () => ({
