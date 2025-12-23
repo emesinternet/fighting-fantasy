@@ -17,3 +17,4 @@ Single-page web sheet for Fighting Fantasy gamebooks. Track player stats, manage
 - **Adventure Log:** Scrollable list sized for five entries with visible timestamps to keep recent actions easy to follow.
 - **New Game:** Starting a new adventure clears the Adventure Log so prior runs do not linger.
 - **Decision Log:** Use the **+** button beside the header to record a page number and decision; timestamps remain in the save file for reference but stay hidden in the UI when browsing entries.
+- **Layout:** Log headers stay at a consistent 30px height, and roll dialogs keep comfortable spacing between options and actions for readability.
