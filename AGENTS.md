@@ -20,3 +20,7 @@ This repository hosts a minimal single-page companion app for the Fighting Fanta
 ## Workflow reminders for agents
 - Do not run automated tests or capture screenshots after making changes unless the user explicitly requests them.
 - Follow all repository instructions even when performing small maintenance updates.
+
+## Recent UI notes
+- Dropdown caret alignment is custom drawn in `styles.css` to keep arrows centered inside dark selects.
+- Modal shells are capped at 800px wide, and compact modals are capped at 480px to stay comfortable on larger displays.

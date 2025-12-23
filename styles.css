@@ -164,9 +164,18 @@ select {
 
 /* Keep dropdowns dark-themed, including the expanded option list. */
 select {
+  /* Custom caret keeps the dropdown arrow visually centered on dark backgrounds. */
   color-scheme: dark;
   background: var(--panel);
   border-color: var(--btn-border-strong);
+  appearance: none;
+  padding-right: 32px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: right 12px center, right 6px center;
+  background-size: 8px 8px, 8px 8px;
+  background-repeat: no-repeat;
 }
 
 select#general-roll-select {
@@ -544,14 +553,14 @@ button:hover:enabled {
   background: #121212;
   padding: 16px;
   border-radius: var(--radius);
-  max-width: 720px;
+  max-width: 800px;
   width: 100%;
   box-shadow: var(--shadow-strong);
   border: 1px solid var(--panel-border);
 }
 
 .modal-compact {
-  max-width: 440px;
+  max-width: 480px;
 }
 
 .modal h3 {
