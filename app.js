@@ -454,7 +454,7 @@
   };
 
   const showDecisionDialog = () => {
-    const { modal, close } = createModal(
+    const { overlay, modal, close } = createModal(
       'Add Decision',
       'Record the page number and the choice you made for later reference.',
       { compact: true }
@@ -505,7 +505,7 @@
     modal.appendChild(form);
 
     cancel.addEventListener('click', close);
-    addButton.addEventListener('click', () => {
+    const attemptSave = () => {
       const pageValue = parseNumber(pageInput.value, NaN, 1, 9999);
       const decisionValue = decisionInput.value.trim();
 
@@ -521,6 +521,15 @@
 
       addDecisionLogEntry(pageValue, decisionValue);
       close();
+    };
+
+    addButton.addEventListener('click', attemptSave);
+    overlay.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        // Let Shift+Enter preserve new lines in the textarea while keeping a quick submit path.
+        event.preventDefault();
+        attemptSave();
+      }
     });
   };
 
@@ -1396,7 +1405,13 @@
       formatModifierPart(playerModifiers.skillBonus, '🤺')
     ].filter(Boolean);
 
-    playerModifierChip.textContent = parts.length ? `Hero mods: ${parts.join(' ')}` : '';
+    const summary = parts.length ? `Hero mods: ${parts.join(' ')}` : '';
+    playerModifierChip.textContent = summary;
+    if (summary) {
+      playerModifierChip.title = `Damage dealt/taken and Skill bonus: ${parts.join(' ')}`;
+    } else {
+      playerModifierChip.removeAttribute('title');
+    }
   };
 
   // Keep enemy damage calculations and UI summaries in sync by routing everything through
@@ -1509,7 +1524,11 @@
       header.appendChild(stats);
       const enemyModifierChip = document.createElement('span');
       enemyModifierChip.className = 'modifier-chip';
-      enemyModifierChip.textContent = summarizeEnemyModifiers(enemy);
+      const enemyModifierSummary = summarizeEnemyModifiers(enemy);
+      enemyModifierChip.textContent = enemyModifierSummary;
+      if (enemyModifierSummary) {
+        enemyModifierChip.title = `Enemy damage modifiers: ${enemyModifierSummary}`;
+      }
       header.appendChild(enemyModifierChip);
       box.appendChild(header);
 
@@ -1908,6 +1927,72 @@
     showActionVisual('lose');
   };
 
+  // Keyboard shortcuts keep common combat and logging flows fast without conflicting with text entry.
+  const isTypingInForm = () => {
+    const active = document.activeElement;
+    if (!active || !(active instanceof HTMLElement)) {
+      return false;
+    }
+    const tag = active.tagName?.toLowerCase();
+    return active.isContentEditable || ['input', 'textarea', 'select'].includes(tag);
+  };
+
+  const handleGlobalHotkeys = (event) => {
+    if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) {
+      return;
+    }
+
+    const key = event.key?.toLowerCase();
+    if (!key || isTypingInForm()) {
+      return;
+    }
+
+    if (key === 'd') {
+      event.preventDefault();
+      showDecisionDialog();
+      return;
+    }
+
+    if (key === 'a') {
+      event.preventDefault();
+      addEnemy();
+      return;
+    }
+
+    if (key === 'r') {
+      event.preventDefault();
+      showGeneralRollDialog();
+      return;
+    }
+
+    if (key === 't') {
+      event.preventDefault();
+      showLuckDialog();
+      return;
+    }
+
+    if (key === 'f10') {
+      event.preventDefault();
+      showSaveDialog();
+      return;
+    }
+
+    if (key === 'f12') {
+      event.preventDefault();
+      loadFileInput.click();
+      return;
+    }
+
+    if (/^[1-9]$/.test(key)) {
+      const index = parseInt(key, 10) - 1;
+      if (enemies[index]) {
+        // Attacks can roll asynchronously; ignore the promise so keypress handling stays lightweight.
+        event.preventDefault();
+        performAttack(index);
+      }
+    }
+  };
+
   // Wiring ----------------------------------------------------------------
   document.getElementById('eatMeal').addEventListener('click', handleEatMeal);
   document.getElementById('escape').addEventListener('click', escapeCombat);
@@ -1920,6 +2005,7 @@
   document.getElementById('gameOver').addEventListener('click', playGameOverVisual);
   document.getElementById('usePotion').addEventListener('click', applyPotion);
   loadFileInput.addEventListener('change', handleLoadFile);
+  document.addEventListener('keydown', handleGlobalHotkeys);
 
   document.getElementById('addEnemy').addEventListener('click', () => addEnemy());
   document.getElementById('addDecision').addEventListener('click', showDecisionDialog);
