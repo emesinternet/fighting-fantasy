@@ -17,6 +17,8 @@
   --btn-border-strong: #3a3a3a;
   --btn-hover: #1d1d1d;
   --surface-raise: rgba(255, 255, 255, 0.06);
+  --radius: 6px;
+  --shadow-strong: 0 18px 50px rgba(0, 0, 0, 0.5);
 }
 
 * {
@@ -98,7 +100,7 @@ a {
   background: var(--panel);
   border: 1px solid var(--panel-border);
   padding: 14px;
-  border-radius: 6px;
+  border-radius: var(--radius);
 }
 
 .section-header {
@@ -312,7 +314,7 @@ button:hover:enabled {
 .option-card {
   border: 1px solid var(--panel-border);
   padding: 10px;
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: var(--surface-raise);
   display: flex;
   flex-direction: column;
@@ -380,7 +382,7 @@ button:hover:enabled {
 .log-panel {
   background: var(--panel);
   border: 1px solid var(--panel-border);
-  border-radius: 6px;
+  border-radius: var(--radius);
   padding: 10px;
 }
 
@@ -414,7 +416,7 @@ button:hover:enabled {
   font-size: 0.85rem;
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
   line-height: 1.4;
-  border-radius: 6px;
+  border-radius: var(--radius);
 }
 
 .log-entry {
@@ -541,10 +543,10 @@ button:hover:enabled {
 .modal {
   background: #121212;
   padding: 16px;
-  border-radius: 8px;
+  border-radius: var(--radius);
   max-width: 720px;
   width: 100%;
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-strong);
   border: 1px solid var(--panel-border);
 }
 
@@ -595,7 +597,7 @@ button:hover:enabled {
 .starting-chip {
   background: rgba(255, 255, 255, 0.07);
   border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 6px;
+  border-radius: var(--radius);
   padding: 2px 6px;
   font-size: 0.8rem;
   margin-left: 6px;
@@ -731,7 +733,7 @@ input.inline-number {
   margin: 0;
   padding: 12px;
   border: 1px dashed var(--panel-border);
-  border-radius: 6px;
+  border-radius: var(--radius);
   color: var(--muted);
 }
 
@@ -750,7 +752,7 @@ input.inline-number {
   gap: 6px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid var(--panel-border);
-  border-radius: 6px;
+  border-radius: var(--radius);
   padding: 6px 10px;
   color: var(--accent-strong);
   font-weight: 700;
@@ -800,8 +802,8 @@ blockquote {
   width: 480px;
   height: 480px;
   object-fit: cover;
-  border-radius: 8px;
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-strong);
   opacity: 0;
   transform: translateY(18px);
 }
@@ -815,6 +817,17 @@ blockquote {
   color: var(--accent-strong);
   opacity: 0;
   transform: translateY(12px);
+}
+
+@media (max-width: 960px) {
+  .animation-image {
+    width: min(420px, 90vw);
+    height: auto;
+  }
+
+  .animation-text {
+    font-size: 1.4rem;
+  }
 }
 
 @keyframes fade-up-soft {

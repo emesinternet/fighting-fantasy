@@ -17,6 +17,11 @@ Single-page web sheet for Fighting Fantasy gamebooks. Track player stats, manage
 - **Adventure Log:** Scrollable list sized for four entries with visible timestamps to keep recent actions easy to follow.
 - **Decision Log:** Use the **+** button beside the header to record a page number and decision; timestamps remain in the save file for reference but stay hidden in the UI when browsing entries.
 
+## Refinements
+- Enemy stat inputs now share the same clamped number handling, making quick edits more consistent.
+- Action overlays scale down on narrower screens while keeping the art and text legible.
+- Panels and chips use shared radius and shadow tokens for a more unified look.
+
 ## Keyboard shortcuts
 - **D:** Open Add Decision (Enter saves; Shift+Enter adds a newline in the decision text).
 - **A:** Add Enemy.
