@@ -14,6 +14,13 @@
     potionUsed: false
   };
 
+  // Light-weight knobs for tailoring how the player trades blows in combat.
+  const playerModifiers = {
+    damageDone: 0,
+    damageReceived: 0,
+    skillBonus: 0
+  };
+
   // Track the unmodifiable starting maxima so we can surface them alongside the inputs.
   const initialStats = {
     skill: 0,
@@ -34,6 +41,7 @@
   const loadFileInput = document.getElementById('loadFileInput');
   const potionStatus = document.getElementById('potionStatus');
   const usePotionButton = document.getElementById('usePotion');
+  const playerModifierChip = document.getElementById('playerModifierChip');
 
   // Animation overlay elements for action highlights.
   const animationOverlay = document.getElementById('action-overlay');
@@ -83,6 +91,22 @@
     }
     return fallback;
   };
+
+  const createDefaultEnemyModifiers = () => ({
+    damageDealt: 2,
+    damageReceived: 2,
+    playerDamageBonus: 0,
+    playerDamageTakenBonus: 0
+  });
+
+  const normalizeEnemyModifiers = (modifiers = {}) => ({
+    damageDealt: parseNumber(modifiers.damageDealt, 2, 0, 99),
+    damageReceived: parseNumber(modifiers.damageReceived, 2, 0, 99),
+    playerDamageBonus: parseNumber(modifiers.playerDamageBonus, 0, -99, 99),
+    playerDamageTakenBonus: parseNumber(modifiers.playerDamageTakenBonus, 0, -99, 99)
+  });
+
+  const getEnemyModifiers = (enemy) => normalizeEnemyModifiers(enemy?.modifiers || createDefaultEnemyModifiers());
 
   // Keep enemy naming consistent for logs, defaulting to a stable identifier if a custom name is missing.
   const formatEnemyName = (enemy) => {
@@ -273,7 +297,8 @@
           id: safeId,
           name: safeName,
           skill: parseNumber(enemy.skill, 0, 0, 999),
-          stamina: parseNumber(enemy.stamina, 0, 0, 999)
+          stamina: parseNumber(enemy.stamina, 0, 0, 999),
+          modifiers: normalizeEnemyModifiers(enemy.modifiers)
         };
       });
     }
@@ -324,12 +349,20 @@
     syncPlayerInputs();
   };
 
+  const applyPlayerModifiers = (savedModifiers = {}) => {
+    playerModifiers.damageDone = parseNumber(savedModifiers.damageDone, 0, -99, 99);
+    playerModifiers.damageReceived = parseNumber(savedModifiers.damageReceived, 0, -99, 99);
+    playerModifiers.skillBonus = parseNumber(savedModifiers.skillBonus, 0, -99, 99);
+    renderPlayerModifierSummary();
+  };
+
   const buildSavePayload = (pageNumberLabel) => ({
-    version: 2,
+    version: 3,
     savedAt: new Date().toISOString(),
     pageNumber: pageNumberLabel,
     player: { ...player },
     initialStats: { ...initialStats },
+    playerModifiers: { ...playerModifiers },
     notes: getNotesState(),
     enemies: enemies.map((enemy) => ({ ...enemy })),
     log: logHistory.map((entry) => ({ ...entry })),
@@ -483,6 +516,7 @@
   // Restore core data in a predictable order so fields sync correctly.
   const applySaveData = (data) => {
     applyPlayerState(data.player, data.initialStats);
+    applyPlayerModifiers(data.playerModifiers || {});
     applyNotesState(data.notes);
     applyEnemiesState(data.enemies);
     applyLogState(Array.isArray(data.log) ? data.log : []);
@@ -809,6 +843,7 @@
     inputs.luck.value = player.luck;
     inputs.meals.value = player.meals;
     renderPotionStatus();
+    renderPlayerModifierSummary();
   };
 
   const bindPlayerInputs = () => {
@@ -1225,6 +1260,146 @@
     }
   };
 
+  const showPlayerModifierDialog = () => {
+    const { modal, close } = createModal(
+      'Adjust Player Modifiers',
+      'Tweak how your hero handles incoming and outgoing damage.',
+      { compact: true }
+    );
+
+    const form = document.createElement('div');
+    form.className = 'modal-form';
+
+    const fields = [
+      {
+        id: 'player-damage-done',
+        label: 'Damage done (applies to all enemies)',
+        value: playerModifiers.damageDone,
+        helper: 'Positive values increase how much damage you inflict.',
+        min: -99,
+        max: 99
+      },
+      {
+        id: 'player-damage-received',
+        label: 'Damage received modifier',
+        value: playerModifiers.damageReceived,
+        helper: 'Positive values increase damage you take; negatives reduce it.',
+        min: -99,
+        max: 99
+      },
+      {
+        id: 'player-skill-bonus',
+        label: 'Add Skill to attack rolls',
+        value: playerModifiers.skillBonus,
+        helper: 'Adds directly to your Skill when rolling to attack an enemy.',
+        min: -99,
+        max: 99
+      }
+    ];
+
+    const inputs = {};
+
+    fields.forEach((field) => {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'modal-field';
+
+      const label = document.createElement('label');
+      label.textContent = field.label;
+      label.htmlFor = field.id;
+
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.id = field.id;
+      input.value = field.value;
+      input.min = field.min;
+      input.max = field.max;
+
+      const helper = document.createElement('p');
+      helper.className = 'helper-text';
+      helper.textContent = field.helper;
+
+      inputs[field.id] = input;
+
+      wrapper.appendChild(label);
+      wrapper.appendChild(input);
+      wrapper.appendChild(helper);
+      form.appendChild(wrapper);
+    });
+
+    const actions = document.createElement('div');
+    actions.className = 'modal-actions';
+    const cancel = document.createElement('button');
+    cancel.className = 'btn btn-negative';
+    cancel.textContent = 'Cancel';
+    cancel.addEventListener('click', close);
+
+    const apply = document.createElement('button');
+    apply.className = 'btn btn-positive';
+    apply.textContent = 'Apply';
+    apply.addEventListener('click', () => {
+      playerModifiers.damageDone = parseNumber(inputs['player-damage-done'].value, 0, -99, 99);
+      playerModifiers.damageReceived = parseNumber(inputs['player-damage-received'].value, 0, -99, 99);
+      playerModifiers.skillBonus = parseNumber(inputs['player-skill-bonus'].value, 0, -99, 99);
+      renderPlayerModifierSummary();
+      renderEnemies();
+      logMessage('Player modifiers updated.', 'info');
+      close();
+    });
+
+    actions.appendChild(cancel);
+    actions.appendChild(apply);
+    form.appendChild(actions);
+    modal.appendChild(form);
+  };
+
+  const formatModifierPart = (value, emoji) => {
+    if (!value) {
+      return '';
+    }
+    const prefix = value > 0 ? '+' : '';
+    return `${emoji}${prefix}${value}`;
+  };
+
+  const renderPlayerModifierSummary = () => {
+    if (!playerModifierChip) {
+      return;
+    }
+    const parts = [
+      formatModifierPart(playerModifiers.damageDone, '⚔️'),
+      formatModifierPart(playerModifiers.damageReceived, '🛡️'),
+      formatModifierPart(playerModifiers.skillBonus, '✨')
+    ].filter(Boolean);
+
+    playerModifierChip.textContent = parts.length ? `Hero mods: ${parts.join(' ')}` : '';
+  };
+
+  const summarizeEnemyModifiers = (enemy) => {
+    const modifiers = getEnemyModifiers(enemy);
+    const damageFromPlayer = modifiers.damageReceived + modifiers.playerDamageBonus + playerModifiers.damageDone;
+    const damageToPlayer = modifiers.damageDealt + modifiers.playerDamageTakenBonus + playerModifiers.damageReceived;
+
+    const pieces = [];
+    if (modifiers.damageReceived !== 2 || modifiers.playerDamageBonus || playerModifiers.damageDone) {
+      pieces.push(`🛡️${Math.max(0, damageFromPlayer)}`);
+    }
+    if (modifiers.damageDealt !== 2 || modifiers.playerDamageTakenBonus || playerModifiers.damageReceived) {
+      pieces.push(`🗡️${Math.max(0, damageToPlayer)}`);
+    }
+    return pieces.join(' ');
+  };
+
+  const calculateDamageToEnemy = (enemy) => {
+    const modifiers = getEnemyModifiers(enemy);
+    const adjusted = modifiers.damageReceived + playerModifiers.damageDone + modifiers.playerDamageBonus;
+    return Math.max(0, adjusted);
+  };
+
+  const calculateDamageToPlayer = (enemy) => {
+    const modifiers = getEnemyModifiers(enemy);
+    const adjusted = modifiers.damageDealt + playerModifiers.damageReceived + modifiers.playerDamageTakenBonus;
+    return Math.max(0, adjusted);
+  };
+
   // Enemy handling --------------------------------------------------------
   function renderEnemies() {
     const container = document.getElementById('monsterList');
@@ -1239,6 +1414,7 @@
     }
 
     enemies.forEach((enemy, index) => {
+      enemy.modifiers = getEnemyModifiers(enemy);
       const box = document.createElement('div');
       box.className = 'enemy-box';
 
@@ -1285,6 +1461,10 @@
       stats.appendChild(staminaLabel);
 
       header.appendChild(stats);
+      const enemyModifierChip = document.createElement('span');
+      enemyModifierChip.className = 'modifier-chip';
+      enemyModifierChip.textContent = summarizeEnemyModifiers(enemy);
+      header.appendChild(enemyModifierChip);
       box.appendChild(header);
 
       const actions = document.createElement('div');
@@ -1295,6 +1475,12 @@
       attackButton.className = 'btn btn-positive attack-button';
       attackButton.addEventListener('click', () => performAttack(index));
       actions.appendChild(attackButton);
+
+      const modifierButton = document.createElement('button');
+      modifierButton.textContent = 'Modifier';
+      modifierButton.className = 'btn btn-neutral';
+      modifierButton.addEventListener('click', () => showEnemyModifierDialog(index));
+      actions.appendChild(modifierButton);
 
       const removeButton = document.createElement('button');
       removeButton.textContent = 'Remove';
@@ -1307,6 +1493,114 @@
     });
   }
 
+  const showEnemyModifierDialog = (index) => {
+    const enemy = enemies[index];
+    if (!enemy) {
+      alert('Enemy not found.');
+      return;
+    }
+
+    const modifiers = getEnemyModifiers(enemy);
+    const { modal, close } = createModal(
+      `Modify ${formatEnemyName(enemy)}`,
+      'Adjust how this foe trades damage with you.',
+      { compact: true }
+    );
+
+    const form = document.createElement('div');
+    form.className = 'modal-form';
+
+    const fields = [
+      {
+        id: 'damage-dealt',
+        label: 'Damage to you on a hit',
+        value: modifiers.damageDealt,
+        min: 0,
+        helper: 'Set how much damage this enemy inflicts when it wins a round.'
+      },
+      {
+        id: 'damage-received',
+        label: 'Damage it takes on a hit',
+        value: modifiers.damageReceived,
+        min: 0,
+        helper: 'Set how much damage this enemy suffers when you win a round.'
+      },
+      {
+        id: 'player-damage-bonus',
+        label: 'Extra damage you deal to this enemy',
+        value: modifiers.playerDamageBonus,
+        min: -99,
+        max: 99,
+        helper: 'Bonus (or penalty) applied after your own modifiers.'
+      },
+      {
+        id: 'player-damage-taken',
+        label: 'Extra damage you take from this enemy',
+        value: modifiers.playerDamageTakenBonus,
+        min: -99,
+        max: 99,
+        helper: 'Bonus (or penalty) added after your own damage received modifier.'
+      }
+    ];
+
+    const inputsMap = {};
+
+    fields.forEach((field) => {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'modal-field';
+
+      const label = document.createElement('label');
+      label.textContent = field.label;
+      label.htmlFor = field.id;
+
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.id = field.id;
+      input.value = field.value;
+      if (Number.isFinite(field.min)) input.min = field.min;
+      if (Number.isFinite(field.max)) input.max = field.max;
+
+      const helper = document.createElement('p');
+      helper.className = 'helper-text';
+      helper.textContent = field.helper;
+
+      inputsMap[field.id] = input;
+
+      wrapper.appendChild(label);
+      wrapper.appendChild(input);
+      wrapper.appendChild(helper);
+      form.appendChild(wrapper);
+    });
+
+    const actions = document.createElement('div');
+    actions.className = 'modal-actions';
+    const cancel = document.createElement('button');
+    cancel.className = 'btn btn-negative';
+    cancel.textContent = 'Cancel';
+    cancel.addEventListener('click', close);
+
+    const apply = document.createElement('button');
+    apply.className = 'btn btn-positive';
+    apply.textContent = 'Apply';
+    apply.addEventListener('click', () => {
+      const updated = normalizeEnemyModifiers({
+        damageDealt: inputsMap['damage-dealt'].value,
+        damageReceived: inputsMap['damage-received'].value,
+        playerDamageBonus: inputsMap['player-damage-bonus'].value,
+        playerDamageTakenBonus: inputsMap['player-damage-taken'].value
+      });
+      enemy.modifiers = updated;
+      renderEnemies();
+      logMessage(`${formatEnemyName(enemy)} modifiers updated.`, 'info');
+      close();
+    });
+
+    actions.appendChild(cancel);
+    actions.appendChild(apply);
+    form.appendChild(actions);
+    modal.appendChild(form);
+  };
+
   function addEnemy(initial = { skill: 0, stamina: 0 }) {
     const safeId = Number.isFinite(initial?.id) ? initial.id : nextEnemyId++;
     nextEnemyId = Math.max(nextEnemyId, safeId + 1);
@@ -1315,7 +1609,8 @@
       id: safeId,
       name: typeof initial?.name === 'string' && initial.name.trim() ? initial.name : `Enemy ${safeId}`,
       skill: parseNumber(initial.skill, 0, 0, 999),
-      stamina: parseNumber(initial.stamina, 0, 0, 999)
+      stamina: parseNumber(initial.stamina, 0, 0, 999),
+      modifiers: normalizeEnemyModifiers(initial.modifiers || createDefaultEnemyModifiers())
     };
 
     enemies.push(enemy);
@@ -1416,7 +1711,7 @@
     }
 
     const monsterAttack = rollDice(2) + enemy.skill;
-    const playerAttack = rollDice(2) + player.skill;
+    const playerAttack = rollDice(2) + Math.max(0, player.skill + playerModifiers.skillBonus);
 
     const enemyLabel = formatEnemyName(enemy);
     logMessage(`Combat vs ${enemyLabel}: Monster ${monsterAttack} vs Player ${playerAttack}.`, 'action');
@@ -1428,8 +1723,9 @@
 
     let defeated = false;
     if (playerAttack > monsterAttack) {
-      enemy.stamina = Math.max(0, enemy.stamina - 2);
-      logMessage(`You hit ${enemyLabel} for 2 damage.`, 'success');
+      const damageToEnemy = calculateDamageToEnemy(enemy);
+      enemy.stamina = Math.max(0, enemy.stamina - damageToEnemy);
+      logMessage(`You hit ${enemyLabel} for ${damageToEnemy} damage.`, 'success');
       showActionVisual('playerHitEnemy');
       defeated = enemy.stamina === 0;
 
@@ -1441,9 +1737,10 @@
         }
       }
     } else {
-      player.stamina = clamp(player.stamina - 2, 0, player.maxStamina);
+      const damageToPlayer = calculateDamageToPlayer(enemy);
+      player.stamina = clamp(player.stamina - damageToPlayer, 0, player.maxStamina);
       syncPlayerInputs();
-      logMessage(`${enemyLabel} hits you for 2 damage.`, 'danger');
+      logMessage(`${enemyLabel} hits you for ${damageToPlayer} damage.`, 'danger');
       const wantsLuck = confirm('You took damage. Use Luck to reduce it?');
       if (wantsLuck) {
         testLuck({ type: 'playerHitByEnemy', index });
@@ -1528,6 +1825,9 @@
         player.meals = 10;
         player.potion = potionChoice;
         player.potionUsed = false;
+        playerModifiers.damageDone = 0;
+        playerModifiers.damageReceived = 0;
+        playerModifiers.skillBonus = 0;
 
         initialStats.skill = rolls.skill;
         initialStats.stamina = rolls.stamina;
@@ -1566,6 +1866,7 @@
   document.getElementById('eatMeal').addEventListener('click', handleEatMeal);
   document.getElementById('escape').addEventListener('click', escapeCombat);
   document.getElementById('testLuck').addEventListener('click', showLuckDialog);
+  document.getElementById('playerModifier').addEventListener('click', showPlayerModifierDialog);
   document.getElementById('generalRoll').addEventListener('click', showGeneralRollDialog);
   document.getElementById('saveGame').addEventListener('click', showSaveDialog);
   document.getElementById('loadGame').addEventListener('click', () => loadFileInput.click());

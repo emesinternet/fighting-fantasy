@@ -29,19 +29,23 @@
       <section class="column" id="adventureSheet">
         <h2>Adventure Sheet</h2>
         <div class="section stat-grid">
-          <label>Skill <span id="starting-skill" class="starting-chip">-</span>
-            <input type="number" id="skill" value="0" min="0" max="999" class="inline-number">
-          </label>
-          <label>Stamina <span id="starting-stamina" class="starting-chip">-</span>
-            <input type="number" id="stamina" value="0" min="0" max="999" class="inline-number">
-          </label>
-          <label>Luck <span id="starting-luck" class="starting-chip">-</span>
-            <input type="number" id="luck" value="0" min="0" max="999" class="inline-number">
-          </label>
+          <div class="stat-row">
+            <label>Skill <span id="starting-skill" class="starting-chip">-</span>
+              <input type="number" id="skill" value="0" min="0" max="999" class="inline-number">
+            </label>
+            <label>Stamina <span id="starting-stamina" class="starting-chip">-</span>
+              <input type="number" id="stamina" value="0" min="0" max="999" class="inline-number">
+            </label>
+            <label>Luck <span id="starting-luck" class="starting-chip">-</span>
+              <input type="number" id="luck" value="0" min="0" max="999" class="inline-number">
+            </label>
+          </div>
           <div class="row stat-actions">
             <button id="testLuck" class="btn btn-positive">Test Your Luck</button>
+            <button id="playerModifier" class="btn btn-neutral">Modifier</button>
             <button id="generalRoll" class="btn">Roll</button>
           </div>
+          <div id="playerModifierChip" class="modifier-chip" aria-live="polite"></div>
         </div>
 
         <div class="section">
