@@ -1123,6 +1123,9 @@
 
     const modal = document.createElement('div');
     modal.className = 'modal';
+    if (options.wide) {
+      modal.classList.add('modal-wide');
+    }
     if (options.compact) {
       modal.classList.add('modal-compact');
     }
@@ -1344,10 +1347,19 @@
 
   // Allow the player to roll each stat multiple times before accepting the spread.
   const showStatRollDialog = (statSet, onComplete) => {
-    const { modal, close } = createModal('Roll Your Stats', 'Roll each stat as many times as you like, then start your adventure.');
+    const hasMagic = Boolean(statSet.magic);
+    const { modal, close } = createModal(
+      'Roll Your Stats',
+      'Roll each stat as many times as you like, then start your adventure.',
+      { wide: hasMagic }
+    );
 
     const grid = document.createElement('div');
     grid.className = 'grid-three';
+    const statCount = Object.keys(statSet).length;
+    if (statCount >= 4) {
+      grid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(180px, 1fr))';
+    }
     const applyButton = document.createElement('button');
     applyButton.className = 'btn btn-positive';
     applyButton.textContent = 'Start Adventure';
@@ -1423,17 +1435,33 @@
     const grid = document.createElement('div');
     grid.className = 'grid-three';
 
-    const summary = document.createElement('p');
-    summary.className = 'helper-text';
-
     const selection = {};
     const safeLimit = Math.max(0, limit || 0);
+    let confirmButton;
+
+    const summaryCard = document.createElement('div');
+    summaryCard.className = 'option-card spell-summary-card';
+    const summaryTitle = document.createElement('h4');
+    summaryTitle.textContent = 'Spells Remaining';
+    const summaryCount = document.createElement('div');
+    summaryCount.className = 'spell-summary-count';
+    const summaryMeta = document.createElement('p');
+    summaryMeta.className = 'spell-summary-meta';
+    summaryMeta.textContent = 'Use your Magic to distribute spells.';
+    summaryCard.appendChild(summaryTitle);
+    summaryCard.appendChild(summaryCount);
+    summaryCard.appendChild(summaryMeta);
 
     const updateSummary = () => {
       const total = Object.values(selection).reduce((sum, value) => sum + (value || 0), 0);
       const remaining = Math.max(0, safeLimit - total);
-      summary.textContent = `Spells remaining: ${remaining} (Limit: ${safeLimit})`;
-      confirmButton.disabled = total > safeLimit;
+      summaryCount.textContent = `${remaining} / ${safeLimit}`;
+      summaryMeta.textContent = total > safeLimit
+        ? 'Too many spells selected.'
+        : 'Distribute spells up to your limit.';
+      if (confirmButton) {
+        confirmButton.disabled = total > safeLimit;
+      }
     };
 
     spells.forEach((spell) => {
@@ -1441,41 +1469,42 @@
       const card = document.createElement('div');
       card.className = 'option-card';
 
+      const header = document.createElement('div');
+      header.className = 'spell-card-header';
       const title = document.createElement('h4');
       title.textContent = spell.name;
-      card.appendChild(title);
+      header.appendChild(title);
 
-      const description = document.createElement('p');
-      description.textContent = spell.description;
-      card.appendChild(description);
-
-      const inputLabel = document.createElement('label');
-      inputLabel.textContent = 'Prepared copies';
       const input = document.createElement('input');
       input.type = 'number';
+      input.className = 'spell-input';
       input.min = '0';
       input.max = String(safeLimit);
       input.value = '0';
+      input.setAttribute('aria-label', `Copies of ${spell.name}`);
       input.addEventListener('change', () => {
         selection[spell.key] = parseNumber(input.value, 0, 0, 999);
         input.value = selection[spell.key];
         updateSummary();
       });
+      header.appendChild(input);
+      card.appendChild(header);
 
-      inputLabel.appendChild(input);
-      card.appendChild(inputLabel);
+      const description = document.createElement('p');
+      description.textContent = spell.description;
+      card.appendChild(description);
       grid.appendChild(card);
     });
 
+    grid.appendChild(summaryCard);
     modal.appendChild(grid);
-    modal.appendChild(summary);
 
     const actions = document.createElement('div');
     actions.className = 'modal-actions';
     const cancelButton = document.createElement('button');
     cancelButton.className = 'btn btn-negative';
     cancelButton.textContent = 'Cancel';
-    const confirmButton = document.createElement('button');
+    confirmButton = document.createElement('button');
     confirmButton.className = 'btn btn-positive';
     confirmButton.textContent = 'Confirm Spells';
     confirmButton.disabled = false;
@@ -1809,7 +1838,7 @@
 
   const showCastSpellDialog = () => {
     const spellsAvailable = activeSpells().filter((spell) => parseNumber(preparedSpells[spell.key], 0, 0, 999) > 0);
-    const { modal, close } = createModal('Cast a Spell', 'Choose a prepared spell to use now.', { compact: true });
+    const { modal, close } = createModal('Cast a Spell', 'Choose a prepared spell to use now.');
 
     if (spellsAvailable.length === 0) {
       const empty = document.createElement('p');
@@ -1823,9 +1852,18 @@
         const card = document.createElement('div');
         card.className = 'option-card';
 
+        const header = document.createElement('div');
+        header.className = 'spell-card-header';
         const title = document.createElement('h4');
-        title.textContent = `${spell.name} (x${preparedSpells[spell.key]})`;
-        card.appendChild(title);
+        title.textContent = spell.name;
+        header.appendChild(title);
+
+        const remaining = document.createElement('div');
+        remaining.className = 'spell-count';
+        remaining.textContent = `x${preparedSpells[spell.key]}`;
+        header.appendChild(remaining);
+
+        card.appendChild(header);
 
         const description = document.createElement('p');
         description.textContent = spell.description;

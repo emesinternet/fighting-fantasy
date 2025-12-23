@@ -22,11 +22,12 @@ Single-page web sheet for Fighting Fantasy gamebooks. Track player stats, manage
 - **Citadel of Chaos:** Adds a Magic stat to the character sheet. After rolling stats you may prepare spells up to your Magic score, then cast them from the spells box beside Treasures. Potions and meals are not available for this book, so those controls stay hidden, and spells such as Luck and Skill restore stats according to their descriptions while logging the cast in the Adventure Log.
 
 ## Refinements
+- Spell preparation and casting dialogs now use a compact grid with a remaining-spells summary card for easier allocation.
 - Enemy stat inputs now share the same clamped number handling, making quick edits more consistent.
 - Action overlays scale down on narrower screens while keeping the art and text legible.
 - Panels and chips use shared radius and shadow tokens for a more unified look.
 - Dropdown carets are centered on custom selects for clearer alignment with the label text.
-- Modals now cap at 800px wide (480px for compact dialogs) to keep prompts comfortable on large screens.
+- Standard modals cap at 800px wide (480px for compact dialogs), with the Magic stat rolling dialog widening to 1180px for four-stat layouts.
 
 ## Keyboard shortcuts
 - **D:** Open Add Decision (Enter saves; Shift+Enter adds a newline in the decision text).
