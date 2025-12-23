@@ -98,8 +98,31 @@ a {
   border-radius: 6px;
 }
 
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .section {
   margin-bottom: 14px;
+}
+
+/* Keep the notes cluster flush against the column base. */
+.notes-section {
+  padding-bottom: 0;
+  margin-bottom: 0;
 }
 
 label {
@@ -245,6 +268,12 @@ button:hover:enabled {
   color: var(--danger);
 }
 
+#generalRoll.btn-roll:hover:enabled {
+  background: rgba(123, 216, 143, 0.18);
+  border-color: var(--success);
+  color: var(--success);
+}
+
 .btn-neutral:hover:enabled {
   background: rgba(138, 199, 255, 0.18);
   border-color: var(--info);
@@ -293,11 +322,26 @@ button:hover:enabled {
   justify-self: end;
 }
 
-.split-actions {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
+#monsters {
+  display: flex;
+  flex-direction: column;
   gap: 8px;
-  margin: 8px 0 12px;
+}
+
+.monster-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Keep Escape Combat easy to reach at the bottom of the encounter card. */
+.escape-footer {
+  margin-top: auto;
+}
+
+.escape-footer button {
+  width: 100%;
 }
 
 .log-section {
