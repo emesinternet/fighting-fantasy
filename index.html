@@ -76,15 +76,14 @@
             </div>
             <div class="notes-lower">
               <label class="notes-full treasures-label">Treasures <textarea id="treasure"></textarea></label>
-              <div id="spellsPanel" class="spells-card hidden">
-                <div class="spells-header">
-                  <div>
-                    <h4>Spells</h4>
-                    <p id="spellsHelperText" class="helper-text">Prepare spells with your Magic.</p>
-                  </div>
-                  <button id="castSpell" class="btn btn-neutral btn-small">Cast Spell</button>
+              <div id="spellsWrapper" class="notes-full spells-wrapper">
+                <div class="spells-label-row">
+                  <span class="spells-label">Spells</span>
+                  <span id="spellsRemaining" class="starting-chip spells-remaining" aria-live="polite">-</span>
                 </div>
-                <div id="spellsTable" class="spells-table"></div>
+                <div id="spellsPanel" class="spells-card hidden">
+                  <div id="spellsTable" class="spells-table"></div>
+                </div>
               </div>
             </div>
           </div>
