@@ -314,6 +314,12 @@ button:hover:enabled {
   border-color: var(--btn-border-strong);
 }
 
+button.spell-row:hover:enabled {
+  background: rgba(255, 207, 111, 0.06);
+  border-color: rgba(255, 207, 111, 0.35);
+  color: var(--warning);
+}
+
 .btn-small {
   padding: 6px 10px;
   font-size: 0.9rem;
@@ -699,6 +705,10 @@ input.inline-number {
   align-items: end;
 }
 
+.stat-row[data-primary="true"] {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .stat-row label {
   margin-top: 0;
 }
@@ -835,6 +845,7 @@ input.inline-number {
   text-align: left;
   font-size: 0.7rem;
   transition: border-color 0.12s ease, background 0.12s ease, color 0.12s ease;
+  color: var(--muted);
 }
 
 .spell-row:hover {
@@ -887,6 +898,10 @@ input.inline-number {
 .spell-row:hover h5,
 .spell-row:hover p,
 .spell-row:hover .spell-count {
+  color: var(--warning);
+}
+
+.spell-row:hover:not(:disabled) {
   color: var(--warning);
 }
 
