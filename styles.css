@@ -355,27 +355,12 @@ button:hover:enabled {
   height: 100%;
 }
 
-.enemy-copy {
-  background: rgba(255, 207, 111, 0.14);
-  border-color: rgba(255, 207, 111, 0.5);
-}
-
 .enemy-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-}
-
-.copy-badge {
-  background: rgba(255, 207, 111, 0.2);
-  border: 1px solid rgba(255, 207, 111, 0.5);
-  color: var(--warning);
-  border-radius: var(--radius);
-  padding: 2px 8px;
-  font-weight: 700;
-  font-size: 0.78rem;
 }
 
 .enemy-actions {
@@ -844,11 +829,12 @@ input.inline-number {
   width: 100%;
   text-align: left;
   font-size: 0.7rem;
+  transition: border-color 0.12s ease, background 0.12s ease, color 0.12s ease;
 }
 
 .spell-row:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: var(--btn-border-strong);
+  background: rgba(255, 207, 111, 0.14);
+  border-color: rgba(255, 207, 111, 0.5);
 }
 
 .spell-row:focus-visible {
@@ -891,6 +877,12 @@ input.inline-number {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.spell-row:hover h5,
+.spell-row:hover p,
+.spell-row:hover .spell-count {
+  color: var(--warning);
 }
 
 .spells-empty {

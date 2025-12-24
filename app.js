@@ -2315,14 +2315,10 @@
 
       const title = document.createElement('strong');
       title.textContent = formatEnemyName(enemy);
-      header.appendChild(title);
-
       if (enemy.isCopy) {
-        const copyBadge = document.createElement('span');
-        copyBadge.className = 'copy-badge';
-        copyBadge.textContent = 'Copied Ally';
-        header.appendChild(copyBadge);
+        title.style.color = 'rgba(255, 207, 111, 1)';
       }
+      header.appendChild(title);
 
       const stats = document.createElement('div');
       stats.className = 'enemy-stats';
