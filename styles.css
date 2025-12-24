@@ -791,7 +791,19 @@ input.inline-number {
 }
 
 .spells-remaining {
-  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: var(--radius);
+  background: rgba(138, 199, 255, 0.14);
+  color: var(--accent-strong);
+  border: 1px solid rgba(138, 199, 255, 0.4);
+  font-weight: 700;
+}
+
+.spells-wrapper .helper-text {
+  margin: 0;
 }
 
 .spells-table {
@@ -829,13 +841,6 @@ input.inline-number {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-}
-
-.spell-description {
-  margin: 2px 0 0;
-  color: var(--muted);
-  font-size: 0.86rem;
-  font-weight: 400;
 }
 
 .spell-row:hover {

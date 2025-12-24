@@ -170,6 +170,7 @@
   const spellsWrapper = document.getElementById('spellsWrapper');
   const spellsPanel = document.getElementById('spellsPanel');
   const spellsTable = document.getElementById('spellsTable');
+  const spellsHelperText = document.getElementById('spellsHelperText');
   const spellsRemaining = document.getElementById('spellsRemaining');
 
   // Animation overlay elements for action highlights.
@@ -477,6 +478,9 @@
       if (spellsRemaining) {
         spellsRemaining.textContent = '-';
       }
+      if (spellsHelperText) {
+        spellsHelperText.textContent = 'Prepare spells with your Magic, then tap a spell to cast it.';
+      }
       return;
     }
 
@@ -506,7 +510,6 @@
         text.appendChild(title);
         const description = document.createElement('p');
         description.textContent = spell.description;
-        description.className = 'spell-description';
         description.title = spell.description;
         text.appendChild(description);
 
@@ -525,6 +528,9 @@
     const effectiveLimit = preparedSpellLimit ?? initialStats.magic ?? player.magic ?? 0;
     const remainingTotal = activePrepared.reduce((sum, spell) => sum + (spell.count || 0), 0);
 
+    if (spellsHelperText) {
+      spellsHelperText.textContent = `Prepared ${totalPrepared}/${effectiveLimit} spells. Tap a spell to cast it.`;
+    }
     if (spellsRemaining) {
       spellsRemaining.textContent = `${remainingTotal} left`;
     }
@@ -1523,7 +1529,6 @@
 
       const description = document.createElement('p');
       description.textContent = spell.description;
-      description.className = 'spell-description';
       description.title = spell.description;
       card.appendChild(description);
 
@@ -1903,8 +1908,6 @@
     preparedSpells[spellKey] = remaining - 1;
     applySpellEffect(spell);
     renderSpellsPanel();
-    // Highlight spell use with a dedicated action overlay to keep feedback consistent with other flows.
-    showActionVisual('castSpell', { subline: `${spell.name} is cast.` });
   };
 
   const handleEatMeal = () => {

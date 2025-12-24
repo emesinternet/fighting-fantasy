@@ -23,7 +23,6 @@ Single-page web sheet for Fighting Fantasy gamebooks. Track player stats, manage
 
 ## Refinements
 - Spell preparation uses a compact grid with centered quantity controls and a remaining-spells summary card for easier allocation; prepared spells show how many casts remain and are triggered directly from the adventure sheet.
-- The spells header now shows remaining casts beside the label, and casting a spell plays a dedicated animation for clearer feedback.
 - Enemy stat inputs now share the same clamped number handling, making quick edits more consistent.
 - Action overlays scale down on narrower screens while keeping the art and text legible.
 - Panels and chips use shared radius and shadow tokens for a more unified look.
