@@ -355,6 +355,11 @@ button:hover:enabled {
   height: 100%;
 }
 
+.enemy-copy {
+  background: rgba(255, 207, 111, 0.14);
+  border-color: rgba(255, 207, 111, 0.5);
+}
+
 .enemy-header {
   display: flex;
   align-items: center;
@@ -363,12 +368,26 @@ button:hover:enabled {
   flex-wrap: wrap;
 }
 
+.copy-badge {
+  background: rgba(255, 207, 111, 0.2);
+  border: 1px solid rgba(255, 207, 111, 0.5);
+  color: var(--warning);
+  border-radius: var(--radius);
+  padding: 2px 8px;
+  font-weight: 700;
+  font-size: 0.78rem;
+}
+
 .enemy-actions {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   align-items: center;
   margin-top: 8px;
+}
+
+.enemy-actions.copy-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .inline-action {
@@ -716,6 +735,7 @@ input.inline-number {
 .notes-grid {
   display: flex;
   flex-direction: column;
+  gap: 10px;
 }
 
 .notes-columns {
@@ -726,13 +746,6 @@ input.inline-number {
 
 .notes-full textarea {
   width: 100%;
-}
-
-.notes-lower {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  align-items: stretch;
 }
 
 @media (max-width: 720px) {
@@ -803,7 +816,7 @@ input.inline-number {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-weight: 800;
+  font-weight: 500;
   margin-left: 0;
 }
 
