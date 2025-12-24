@@ -1370,7 +1370,6 @@
     const { modal, close } = createModal(
       'Roll Your Stats',
       'Roll each stat as many times as you like, then start your adventure.',
-      { wide: hasMagic }
     );
 
     const statCount = Object.keys(statSet).length;
