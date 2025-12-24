@@ -124,6 +124,33 @@
     </div>
   </div>
 
-  <script type="module" src="js/app.js"></script>
+  <script type="module">
+    // Module scripts cannot be loaded from file:// without a local server due to browser CORS rules.
+    if (window.location.protocol === 'file:') {
+      const notice = document.createElement('div');
+      notice.className = 'content-shell';
+      notice.innerHTML = `
+        <section class="section">
+          <h2>Run from a local server</h2>
+          <p>This app uses ES modules and must be opened via http:// or https://. Start a local server (for example: <code>npx http-server .</code>) and reload.</p>
+        </section>
+      `;
+      document.body.innerHTML = '';
+      document.body.appendChild(notice);
+    } else {
+      import('./js/app.js').catch((error) => {
+        console.error('Failed to load app module', error);
+        const fallback = document.createElement('div');
+        fallback.className = 'content-shell';
+        fallback.innerHTML = `
+          <section class="section">
+            <h2>App failed to load</h2>
+            <p>Check the console for details about the module load error.</p>
+          </section>
+        `;
+        document.body.appendChild(fallback);
+      });
+    }
+  </script>
 </body>
 </html>

@@ -23,6 +23,7 @@ This repository hosts a single-page Fighting Fantasy companion app. Keep edits l
 ## Workflow reminders
 - Do not run automated tests or capture screenshots after making changes unless explicitly requested.
 - Follow all repository and AGENTS instructions for any files in this repo.
+- Serve the app via http/https (not file://) so ES modules load correctly; a simple static server (e.g., `npx http-server .`) works during local development.
 
 ## Code layout
 - App boots from `js/app.js` (ES module) and uses helpers in `js/config.js`, `js/logic/`, `js/state/`, and `js/ui/`.
