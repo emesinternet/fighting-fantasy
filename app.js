@@ -1041,7 +1041,7 @@
       subline: 'Potion power surges through you.'
     },
     castSpell: {
-      src: 'img/player-cast-spell.svg',
+      src: 'img/player-casts-spell.png',
       alt: 'The hero channels arcane energy',
       subline: 'You unleash a prepared spell.'
     },
