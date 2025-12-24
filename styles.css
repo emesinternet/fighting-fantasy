@@ -830,6 +830,7 @@ input.inline-number {
   gap: 6px;
   min-height: 100%;
   background-color: rgba(138, 199, 255, 0.18);
+  border-color: var(--info);
 }
 
 .spell-summary-count {
