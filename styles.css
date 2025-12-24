@@ -355,6 +355,11 @@ button:hover:enabled {
   height: 100%;
 }
 
+.enemy-copy {
+  background: rgba(255, 207, 111, 0.14);
+  border-color: rgba(255, 207, 111, 0.5);
+}
+
 .enemy-header {
   display: flex;
   align-items: center;
@@ -833,8 +838,8 @@ input.inline-number {
 }
 
 .spell-row:hover {
-  background: rgba(255, 207, 111, 0.14);
-  border-color: rgba(255, 207, 111, 0.5);
+  background: rgba(255, 207, 111, 0.06);
+  border-color: rgba(255, 207, 111, 0.35);
 }
 
 .spell-row:focus-visible {
