@@ -23,9 +23,11 @@ Single-page web sheet for Fighting Fantasy gamebooks. Track player stats, manage
 
 ## Refinements
 - Spell preparation uses a compact grid with centered quantity controls and a remaining-spells summary card for easier allocation; prepared spells show how many casts remain and are triggered directly from the adventure sheet.
+- Spells now mirror stat chips for remaining casts and use compact inline headers so descriptions can stretch the full card width.
 - Enemy stat inputs now share the same clamped number handling, making quick edits more consistent.
 - Action overlays scale down on narrower screens while keeping the art and text legible.
 - Spellcasting overlays now draw from the PNG action art to match the rest of the animations.
+- Scrollbars use a thinner style throughout the app to stay out of the way while browsing logs or spells.
 - Panels and chips use shared radius and shadow tokens for a more unified look.
 - Dropdown carets are centered on custom selects for clearer alignment with the label text.
 - Standard modals cap at 800px wide (480px for compact dialogs), with the Magic stat rolling dialog widening to 1180px for four-stat layouts.

@@ -504,21 +504,28 @@
         row.setAttribute('aria-label', `Cast ${spell.name} (${spell.count} remaining)`);
         row.addEventListener('click', () => castSpell(spell.key));
 
+        const header = document.createElement('div');
+        header.className = 'spell-row-header';
+
         const text = document.createElement('div');
+        text.className = 'spell-row-body';
         const title = document.createElement('h5');
         title.textContent = spell.name;
-        text.appendChild(title);
+        header.appendChild(title);
+
         const description = document.createElement('p');
         description.textContent = spell.description;
         description.title = spell.description;
-        text.appendChild(description);
 
         const count = document.createElement('div');
         count.className = 'spell-count';
         count.textContent = `x${spell.count}`;
 
+        header.appendChild(count);
+        text.appendChild(header);
+        text.appendChild(description);
+
         row.appendChild(text);
-        row.appendChild(count);
         spellsTable.appendChild(row);
       });
     }
