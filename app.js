@@ -52,7 +52,7 @@
       key: 'creatureCopy',
       name: 'Creature Copy',
       description: 'Copy an enemy you are fighting, matching their Skill and Stamina.',
-      effect: 'log'
+      effect: 'creatureCopy'
     },
     esp: {
       key: 'esp',
