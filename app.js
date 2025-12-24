@@ -206,6 +206,12 @@
     equipment: document.getElementById('equipment')
   };
 
+  // Persist a single drawing snapshot (as a data URL) so saves and reloads can keep maps intact.
+  let mapDrawingDataUrl = '';
+  const MAP_CANVAS_WIDTH = 1600;
+  const MAP_CANVAS_HEIGHT = 1000;
+  const MAP_CANVAS_BACKGROUND = '#f3efe3';
+
   // Keep note fields tidy with a shared reset helper for new games.
   const resetNotes = () => {
     Object.values(notes).forEach((field) => {
@@ -548,6 +554,18 @@
     });
   };
 
+  const getMapState = () => ({
+    image: mapDrawingDataUrl || null
+  });
+
+  const applyMapState = (savedMap = {}) => {
+    mapDrawingDataUrl = typeof savedMap.image === 'string' ? savedMap.image : '';
+  };
+
+  const resetMapDrawing = () => {
+    mapDrawingDataUrl = '';
+  };
+
   const applyLogState = (savedLog = []) => {
     logHistory.length = 0;
     if (Array.isArray(savedLog)) {
@@ -801,7 +819,7 @@
   };
 
   const buildSavePayload = (pageNumberLabel) => ({
-    version: 5,
+    version: 6,
     savedAt: new Date().toISOString(),
     pageNumber: pageNumberLabel,
     book: currentBook || null,
@@ -809,6 +827,7 @@
     initialStats: { ...initialStats },
     playerModifiers: { ...playerModifiers },
     notes: getNotesState(),
+    map: getMapState(),
     enemies: enemies.map((enemy) => ({ ...enemy })),
     log: logHistory.map((entry) => ({ ...entry })),
     decisionLog: decisionLogHistory.map((entry) => ({ ...entry })),
@@ -981,6 +1000,181 @@
     });
   };
 
+  const showMapDialog = () => {
+    const { modal, close } = createModal(
+      'Map Sketchpad',
+      'Free draw a map or jot notes. Saving stores this canvas with your current adventure and future save files.',
+      { slideFromBottom: true }
+    );
+
+    modal.classList.add('map-modal');
+
+    const canvasWrapper = document.createElement('div');
+    canvasWrapper.className = 'map-canvas-wrapper';
+
+    const canvas = document.createElement('canvas');
+    canvas.className = 'map-canvas';
+    canvas.width = MAP_CANVAS_WIDTH;
+    canvas.height = MAP_CANVAS_HEIGHT;
+    canvasWrapper.appendChild(canvas);
+    modal.appendChild(canvasWrapper);
+
+    const ctx = canvas.getContext('2d');
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    const paintBackground = () => {
+      ctx.fillStyle = MAP_CANVAS_BACKGROUND;
+      ctx.fillRect(0, 0, MAP_CANVAS_WIDTH, MAP_CANVAS_HEIGHT);
+    };
+
+    // Keep previous drawings visible whenever the player reopens the map.
+    const hydrateExistingDrawing = () => new Promise((resolve) => {
+      paintBackground();
+      if (!mapDrawingDataUrl) {
+        resolve();
+        return;
+      }
+      const image = new Image();
+      image.onload = () => {
+        ctx.drawImage(image, 0, 0, MAP_CANVAS_WIDTH, MAP_CANVAS_HEIGHT);
+        resolve();
+      };
+      image.onerror = () => resolve();
+      image.src = mapDrawingDataUrl;
+    });
+
+    hydrateExistingDrawing();
+
+    const colorOptions = [
+      { label: 'Ink', value: '#1f1b16' },
+      { label: 'Umber', value: '#6d4b35' },
+      { label: 'Crimson', value: '#b33a3a' },
+      { label: 'Forest', value: '#3f6b2f' },
+      { label: 'Ocean', value: '#2f597f' },
+      { label: 'Steel', value: '#59616c' }
+    ];
+
+    let currentColor = colorOptions[0].value;
+    let erasing = false;
+    const swatches = [];
+
+    const setActiveSwatch = (swatch, colorValue, isEraser = false) => {
+      swatches.forEach((item) => item.classList.remove('is-active'));
+      if (swatch) {
+        swatch.classList.add('is-active');
+      }
+      currentColor = colorValue;
+      erasing = isEraser;
+    };
+
+    const controls = document.createElement('div');
+    controls.className = 'map-controls';
+
+    const palette = document.createElement('div');
+    palette.className = 'map-palette';
+
+    colorOptions.forEach((option, index) => {
+      const swatch = document.createElement('button');
+      swatch.type = 'button';
+      swatch.className = 'map-swatch';
+      swatch.style.background = option.value;
+      swatch.title = `${option.label} ink`;
+      swatch.setAttribute('aria-label', `${option.label} ink`);
+      swatch.addEventListener('click', () => setActiveSwatch(swatch, option.value, false));
+      if (index === 0) {
+        setActiveSwatch(swatch, option.value);
+      }
+      swatches.push(swatch);
+      palette.appendChild(swatch);
+    });
+
+    const eraser = document.createElement('button');
+    eraser.type = 'button';
+    eraser.className = 'map-swatch';
+    eraser.title = 'Erase';
+    eraser.setAttribute('aria-label', 'Erase');
+    eraser.style.background = MAP_CANVAS_BACKGROUND;
+    eraser.addEventListener('click', () => setActiveSwatch(eraser, MAP_CANVAS_BACKGROUND, true));
+    palette.appendChild(eraser);
+    swatches.push(eraser);
+
+    controls.appendChild(palette);
+
+    const actionGroup = document.createElement('div');
+    actionGroup.className = 'map-actions';
+    const cancel = document.createElement('button');
+    cancel.className = 'btn btn-negative';
+    cancel.textContent = 'Cancel';
+    const save = document.createElement('button');
+    save.className = 'btn btn-positive';
+    save.textContent = 'Save';
+    actionGroup.appendChild(save);
+    actionGroup.appendChild(cancel);
+    controls.appendChild(actionGroup);
+    modal.appendChild(controls);
+
+    const getCanvasPoint = (event) => {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: (event.clientX - rect.left) * (canvas.width / rect.width),
+        y: (event.clientY - rect.top) * (canvas.height / rect.height)
+      };
+    };
+
+    let drawing = false;
+
+    const startStroke = (event) => {
+      event.preventDefault();
+      drawing = true;
+      const { x, y } = getCanvasPoint(event);
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.strokeStyle = erasing ? MAP_CANVAS_BACKGROUND : currentColor;
+      ctx.lineWidth = erasing ? 18 : 4.5;
+      ctx.lineTo(x, y);
+      ctx.stroke();
+      if (typeof event.pointerId !== 'undefined') {
+        canvas.setPointerCapture(event.pointerId);
+      }
+    };
+
+    const continueStroke = (event) => {
+      if (!drawing) {
+        return;
+      }
+      event.preventDefault();
+      const { x, y } = getCanvasPoint(event);
+      ctx.lineTo(x, y);
+      ctx.strokeStyle = erasing ? MAP_CANVAS_BACKGROUND : currentColor;
+      ctx.lineWidth = erasing ? 18 : 4.5;
+      ctx.stroke();
+    };
+
+    const endStroke = () => {
+      if (!drawing) {
+        return;
+      }
+      drawing = false;
+      ctx.closePath();
+    };
+
+    canvas.addEventListener('pointerdown', startStroke);
+    canvas.addEventListener('pointermove', continueStroke);
+    canvas.addEventListener('pointerup', endStroke);
+    canvas.addEventListener('pointerleave', endStroke);
+    canvas.addEventListener('pointercancel', endStroke);
+
+    const persistMap = () => {
+      mapDrawingDataUrl = canvas.toDataURL('image/png');
+      logMessage('Map saved to this adventure and future save files.', 'info');
+      close();
+    };
+
+    save.addEventListener('click', persistMap);
+    cancel.addEventListener('click', close);
+  };
+
   // Prompt the book choice up front so saves and logs can stay tied to the right title.
   const showBookDialog = (onSelected, onCancelled) => {
     const { overlay, modal, close } = createModal(
@@ -1077,6 +1271,7 @@
     applyPlayerState(data.player, data.initialStats);
     applyPlayerModifiers(data.playerModifiers || {});
     applyNotesState(data.notes);
+    applyMapState(data.map);
     applyEnemiesState(data.enemies);
     applyLogState(Array.isArray(data.log) ? data.log : []);
     applyDecisionLogState(Array.isArray(data.decisionLog) ? data.decisionLog : []);
@@ -1288,6 +1483,10 @@
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.setAttribute('aria-hidden', 'true');
+    const slideFromBottom = Boolean(options.slideFromBottom);
+    if (slideFromBottom) {
+      overlay.classList.add('modal-overlay-slide');
+    }
 
     const modal = document.createElement('div');
     modal.className = 'modal';
@@ -1296,6 +1495,9 @@
     }
     if (options.compact) {
       modal.classList.add('modal-compact');
+    }
+    if (slideFromBottom) {
+      modal.classList.add('modal-slide');
     }
 
     const heading = document.createElement('h3');
@@ -1311,6 +1513,11 @@
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
     overlay.setAttribute('aria-hidden', 'false');
+    requestAnimationFrame(() => {
+      if (slideFromBottom) {
+        modal.classList.add('is-visible');
+      }
+    });
 
     // Keep a simple focus map that works across buttons, form controls, and intentional tabindex targets.
     const focusableSelectors = [
@@ -1360,13 +1567,43 @@
       }
     };
 
-    const close = () => {
-      overlay.setAttribute('aria-hidden', 'true');
-      overlay.removeEventListener('keydown', handleKeydown);
+    let hasClosed = false;
+    const finishClose = () => {
+      if (hasClosed) {
+        return;
+      }
+      hasClosed = true;
       overlay.remove();
       if (previouslyFocused && document.body.contains(previouslyFocused)) {
         previouslyFocused.focus();
       }
+    };
+
+    const close = () => {
+      overlay.setAttribute('aria-hidden', 'true');
+      overlay.removeEventListener('keydown', handleKeydown);
+
+      if (!slideFromBottom) {
+        finishClose();
+        return;
+      }
+
+      modal.classList.remove('is-visible');
+      modal.classList.add('is-hiding');
+
+      const handleTransitionEnd = (event) => {
+        if (event.target !== modal || event.propertyName !== 'transform') {
+          return;
+        }
+        modal.removeEventListener('transitionend', handleTransitionEnd);
+        finishClose();
+      };
+
+      modal.addEventListener('transitionend', handleTransitionEnd);
+      setTimeout(() => {
+        modal.removeEventListener('transitionend', handleTransitionEnd);
+        finishClose();
+      }, 500);
     };
 
     const handleKeydown = (event) => {
@@ -2982,6 +3219,7 @@
           preparedSpells = spellSelection || {};
           preparedSpellLimit = parseNumber(limit ?? spellLimit, spellLimit, 0, 999);
           resetNotes();
+          resetMapDrawing();
 
           // Starting fresh should leave the adventure log empty so previous runs do not leak context.
           logHistory.length = 0;
@@ -3124,6 +3362,7 @@
   document.getElementById('generalRoll').addEventListener('click', showGeneralRollDialog);
   document.getElementById('saveGame').addEventListener('click', showSaveDialog);
   document.getElementById('loadGame').addEventListener('click', () => loadFileInput.click());
+  document.getElementById('openMap').addEventListener('click', showMapDialog);
   document.getElementById('newGame').addEventListener('click', newGame);
   document.getElementById('gameOver').addEventListener('click', playGameOverVisual);
   document.getElementById('usePotion').addEventListener('click', applyPotion);
