@@ -311,10 +311,17 @@
   };
 
   // Reusable renderer so adventure and decision logs stay consistent.
-  const renderLogList = ({ container, entries, getIcon, formatMessage, showTimestamp = true }) => {
+  const renderLogList = ({
+    container,
+    entries,
+    getIcon,
+    formatMessage,
+    showTimestamp = true,
+    renderActions
+  }) => {
     container.innerHTML = '';
 
-    entries.forEach((entry) => {
+    entries.forEach((entry, index) => {
       const row = document.createElement('div');
       row.className = 'log-entry';
       row.dataset.tone = entry.tone;
@@ -339,6 +346,12 @@
 
       row.appendChild(icon);
       row.appendChild(body);
+      if (renderActions) {
+        const actions = renderActions(entry, index);
+        if (actions) {
+          row.appendChild(actions);
+        }
+      }
       container.appendChild(row);
     });
   };
@@ -376,6 +389,96 @@
     renderDecisionLog();
   };
 
+  // Allow decision entries to be corrected without rebuilding the log.
+  const editDecisionLogEntry = (index) => {
+    const entry = decisionLogHistory[index];
+    if (!entry) {
+      alert('That decision could not be found.');
+      return;
+    }
+
+    const { overlay, modal, close } = createModal(
+      'Edit Decision',
+      'Update the logged page number or wording for this decision.',
+      { compact: true }
+    );
+
+    const form = document.createElement('div');
+    form.className = 'modal-form';
+
+    const pageField = document.createElement('div');
+    pageField.className = 'modal-field';
+    const pageLabel = document.createElement('label');
+    pageLabel.textContent = 'Page Number';
+    pageLabel.htmlFor = 'decision-edit-page-number';
+    const pageInput = document.createElement('input');
+    pageInput.id = 'decision-edit-page-number';
+    pageInput.type = 'number';
+    pageInput.min = '1';
+    pageInput.placeholder = 'e.g. 120';
+    pageInput.value = entry.pageNumber || '';
+    pageField.appendChild(pageLabel);
+    pageField.appendChild(pageInput);
+
+    const decisionField = document.createElement('div');
+    decisionField.className = 'modal-field';
+    const decisionLabel = document.createElement('label');
+    decisionLabel.textContent = 'Decision';
+    decisionLabel.htmlFor = 'decision-edit-text';
+    const decisionInput = document.createElement('textarea');
+    decisionInput.id = 'decision-edit-text';
+    decisionInput.placeholder = 'e.g. Took the west tunnel';
+    decisionInput.value = entry.decision || entry.message || '';
+    decisionField.appendChild(decisionLabel);
+    decisionField.appendChild(decisionInput);
+
+    form.appendChild(pageField);
+    form.appendChild(decisionField);
+
+    const actions = document.createElement('div');
+    actions.className = 'modal-actions';
+    const cancel = document.createElement('button');
+    cancel.className = 'btn btn-negative';
+    cancel.textContent = 'Cancel';
+    const save = document.createElement('button');
+    save.className = 'btn btn-positive';
+    save.textContent = 'Save Changes';
+
+    const attemptSave = () => {
+      const pageValue = parseNumber(pageInput.value, NaN, 1, 9999);
+      const decisionValue = decisionInput.value.trim();
+      if (!Number.isFinite(pageValue)) {
+        alert('Please provide the page number for this decision.');
+        return;
+      }
+      if (!decisionValue) {
+        alert('Please describe the decision.');
+        return;
+      }
+      entry.pageNumber = pageValue;
+      entry.decision = decisionValue;
+      entry.message = `Page ${pageValue}: ${decisionValue}`;
+      entry.timestamp = entry.timestamp || new Date().toISOString();
+      renderDecisionLog();
+      logMessage(`Decision updated for Page ${pageValue}.`, 'info');
+      close();
+    };
+
+    cancel.addEventListener('click', close);
+    save.addEventListener('click', attemptSave);
+    overlay.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        attemptSave();
+      }
+    });
+
+    actions.appendChild(cancel);
+    actions.appendChild(save);
+    form.appendChild(actions);
+    modal.appendChild(form);
+  };
+
   const renderDecisionLog = () => {
     // Decision entries stay concise in the UI while keeping timestamps in saved data.
     renderLogList({
@@ -383,7 +486,20 @@
       entries: decisionLogHistory,
       getIcon: () => '🧭',
       formatMessage: (entry) => entry.message || `Page ${entry.pageNumber || '—'} — ${entry.decision}`,
-      showTimestamp: false
+      showTimestamp: false,
+      renderActions: (_, index) => {
+        const actions = document.createElement('div');
+        actions.className = 'log-entry-actions';
+        const edit = document.createElement('button');
+        edit.type = 'button';
+        edit.className = 'edit-log-button';
+        edit.title = 'Edit decision';
+        edit.setAttribute('aria-label', 'Edit decision entry');
+        edit.textContent = '✎';
+        edit.addEventListener('click', () => editDecisionLogEntry(index));
+        actions.appendChild(edit);
+        return actions;
+      }
     });
   };
 
@@ -472,6 +588,12 @@
     }
     const spellsAvailable = activeSpells();
     const supportsSpells = spellsAvailable.length > 0;
+    if (spellsRemaining) {
+      spellsRemaining.textContent = '-';
+      spellsRemaining.title = supportsSpells
+        ? 'Edit prepared spells'
+        : 'Spells are unavailable for this adventure.';
+    }
     if (spellsWrapper) {
       spellsWrapper.classList.toggle('hidden', !supportsSpells);
     }
@@ -538,6 +660,7 @@
 
     if (spellsRemaining) {
       spellsRemaining.textContent = `${remainingTotal} left`;
+      spellsRemaining.title = 'Edit prepared spells';
     }
   };
 
@@ -560,6 +683,31 @@
       });
     }
     renderSpellsPanel();
+  };
+
+  // Let players correct spell prep without restarting the adventure.
+  const managePreparedSpells = () => {
+    const spellsAvailable = activeSpells();
+    if (!spellsAvailable.length) {
+      alert('No spells are available for this adventure.');
+      return;
+    }
+    const limitStat = activeSpellLimitStat();
+    const statLimit = limitStat ? parseNumber(player[limitStat], 0, 0, 999) : 0;
+    const startingLimit = limitStat ? parseNumber(initialStats[limitStat], statLimit, 0, 999) : 0;
+    const usableLimit = Math.max(preparedSpellLimit, statLimit, startingLimit, 0);
+    showSpellSelectionDialog({
+      limit: usableLimit,
+      spells: spellsAvailable,
+      initialSelection: preparedSpells,
+      onConfirm: (selection, limitValue) => {
+        preparedSpells = { ...selection };
+        preparedSpellLimit = Math.max(0, limitValue ?? usableLimit);
+        renderSpellsPanel();
+        logMessage('Prepared spells updated.', 'info');
+      },
+      onCancel: () => logMessage('Spell update cancelled.', 'warning')
+    });
   };
 
   const applyEnemiesState = (savedEnemies = []) => {
@@ -1445,7 +1593,7 @@
     });
   };
 
-  const showSpellSelectionDialog = ({ limit, spells, onConfirm, onCancel }) => {
+  const showSpellSelectionDialog = ({ limit, spells, onConfirm, onCancel, initialSelection }) => {
     const { modal, close } = createModal(
       'Prepare Your Spells',
       'Spend your Magic to select spells for this adventure.'
@@ -1456,6 +1604,7 @@
 
     const selection = {};
     const safeLimit = Math.max(0, limit || 0);
+    const initialSpellSelection = initialSelection || {};
     const plusButtons = {};
     const minusButtons = {};
     const inputsMap = {};
@@ -1577,6 +1726,12 @@
       grid.appendChild(card);
     });
 
+    Object.entries(initialSpellSelection).forEach(([key, value]) => {
+      if (Object.prototype.hasOwnProperty.call(selection, key)) {
+        setSpellCount(key, parseNumber(value, 0, 0, 999));
+      }
+    });
+
     grid.appendChild(summaryCard);
     modal.appendChild(grid);
 
@@ -1605,7 +1760,7 @@
       }
       close();
       if (onConfirm) {
-        onConfirm(selection, safeLimit);
+        onConfirm({ ...selection }, safeLimit);
       }
     });
 
@@ -2976,6 +3131,9 @@
 
   document.getElementById('addEnemy').addEventListener('click', () => addEnemy());
   document.getElementById('addDecision').addEventListener('click', showDecisionDialog);
+  if (spellsRemaining) {
+    spellsRemaining.addEventListener('click', managePreparedSpells);
+  }
   bindPlayerInputs();
   renderEnemies();
 

@@ -18,6 +18,10 @@ Single-page web sheet for Fighting Fantasy gamebooks. Track player stats, manage
 ## Logs
 - **Adventure Log:** Scrollable list sized for four entries with visible timestamps to keep recent actions easy to follow.
 - **Decision Log:** Use the **+** button beside the header to record a page number and decision; timestamps remain in the save file for reference but stay hidden in the UI when browsing entries.
+- Hover a Decision Log entry to reveal a pencil icon for quick edits if you need to fix a recorded choice.
+
+## Spells
+- When a book supports magic, the Spells badge shows how many prepared casts you have left. Click it to reopen the spell selection dialog without resetting your adventure so you can correct your prepared list.
 
 ## Keyboard shortcuts
 - **D:** Open Add Decision (Enter saves; Shift+Enter adds a newline in the decision text).
