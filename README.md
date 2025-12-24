@@ -6,23 +6,28 @@ Single-page web sheet for Fighting Fantasy gamebooks. Track player stats, manage
 
 ## New game flow
 - Choose your book before rolling stats. The book is saved with the adventure and prefixes downloaded save files so campaigns stay organized.
-- Roll Skill (1D6 + 6), Stamina (2D6 + 12), and Luck (1D6 + 6) with rerolls until accepted.
-- Pick a potion (Skill, Strength, or Fortune) to carry into the run.
+- Roll Skill (1D6 + 6), Stamina (2D6 + 12), and Luck (1D6 + 6) with rerolls until accepted. Books can introduce additional stats; **Citadel of Chaos** adds Magic (2D6 + 6) to the rolling dialog.
+- Pick a potion (Skill, Strength, or Fortune) to carry into the run unless the chosen book disables potions.
+- When a book supports spellcasting, you will select spells immediately after rolling stats, capped by the stat limit defined for that book.
 
 ## Saving and loading
 - **Save:** Button left of New Game. Prompts for book page number, then downloads a JSON snapshot that includes the current book name and prefixes the file with it alongside the page and timestamp.
-- **Load:** Pick a saved JSON file to restore stats, notes, potions, enemies, meals, adventure log entries, and decision log entries.
+- **Load:** Pick a saved JSON file to restore stats, notes, potions, enemies, meals, spell prep, adventure log entries, and decision log entries.
 
 ## Logs
 - **Adventure Log:** Scrollable list sized for four entries with visible timestamps to keep recent actions easy to follow.
 - **Decision Log:** Use the **+** button beside the header to record a page number and decision; timestamps remain in the save file for reference but stay hidden in the UI when browsing entries.
 
+## Book-specific rules
+- **Citadel of Chaos:** Adds a Magic stat to the character sheet. After rolling stats you may prepare spells up to your Magic score, then cast them from the spells box beside Treasures. Potions and meals are not available for this book, so those controls stay hidden, and spells such as Luck and Skill restore stats according to their descriptions while logging the cast in the Adventure Log.
+
 ## Refinements
+- Spell preparation and casting dialogs now use a compact grid with a remaining-spells summary card for easier allocation.
 - Enemy stat inputs now share the same clamped number handling, making quick edits more consistent.
 - Action overlays scale down on narrower screens while keeping the art and text legible.
 - Panels and chips use shared radius and shadow tokens for a more unified look.
 - Dropdown carets are centered on custom selects for clearer alignment with the label text.
-- Modals now cap at 800px wide (480px for compact dialogs) to keep prompts comfortable on large screens.
+- Standard modals cap at 800px wide (480px for compact dialogs), with the Magic stat rolling dialog widening to 1180px for four-stat layouts.
 
 ## Keyboard shortcuts
 - **D:** Open Add Decision (Enter saves; Shift+Enter adds a newline in the decision text).
