@@ -32,16 +32,16 @@
   };
 
   const BOOK_OPTIONS = [
-    'The Warlock of Firetop Mountain',
-    'City of Thieves',
+    'Appointment with F.E.A.R.',
     'Citadel of Chaos',
-    'Forest of Doom',
-    'House of Hell',
-    'Port of Peril',
+    'City of Thieves',
     'Creature of Havoc',
     'Deathtrap Dungeon',
-    'Appointment with F.E.A.R.',
-    'Island of the Lizard King'
+    'Forest of Doom',
+    'House of Hell',
+    'Island of the Lizard King',
+    'Port of Peril',
+    'Warlock of Firetop Mountain (The)',
   ];
 
   let currentBook = '';
@@ -51,7 +51,7 @@
     creatureCopy: {
       key: 'creatureCopy',
       name: 'Creature Copy',
-      description: 'Copy an enemy you are fighting, matching their Skill and Stamina.',
+      description: 'Copy an enemy, matching their Skill and Stamina.',
       effect: 'creatureCopy'
     },
     esp: {
@@ -69,7 +69,7 @@
     foolsGold: {
       key: 'foolsGold',
       name: "Fool's Gold",
-      description: 'Turn ordinary rocks into gold temporarily.',
+      description: 'Temporarily turn ordinary rocks into gold.',
       effect: 'log'
     },
     illusion: {
@@ -87,7 +87,7 @@
     luck: {
       key: 'luck',
       name: 'Luck',
-      description: 'Restore Luck by half of its initial value (rounded down), up to the initial amount.',
+      description: 'Restore Luck by half of its initial value, up to the initial amount.',
       effect: 'restoreLuck'
     },
     shielding: {
@@ -99,7 +99,7 @@
     skill: {
       key: 'skill',
       name: 'Skill',
-      description: 'Restore Stamina by half of its initial value (rounded down), up to the initial amount.',
+      description: 'Restore Stamina by half of its initial value, up to the initial amount.',
       effect: 'restoreStamina'
     },
     strength: {
@@ -157,10 +157,10 @@
 
   const logEl = document.getElementById('log');
   const logHistory = [];
-  const LOG_HISTORY_LIMIT = 50;
+  const LOG_HISTORY_LIMIT = 1000;
   const decisionLogEl = document.getElementById('decisionLog');
   const decisionLogHistory = [];
-  const DECISION_LOG_HISTORY_LIMIT = 50;
+  const DECISION_LOG_HISTORY_LIMIT = 1000;
   const loadFileInput = document.getElementById('loadFileInput');
   const potionStatus = document.getElementById('potionStatus');
   const usePotionButton = document.getElementById('usePotion');
@@ -177,9 +177,9 @@
   const animationImage = document.getElementById('action-image');
   const animationText = document.getElementById('action-text');
   const animationTimers = [];
-  const ANIMATION_ENTRY_DURATION_MS = 900;
+  const ANIMATION_ENTRY_DURATION_MS = 800;
   const ANIMATION_HOLD_DURATION_MS = 2000;
-  const ANIMATION_FADE_DURATION_MS = 360;
+  const ANIMATION_FADE_DURATION_MS = 200;
   const ANIMATION_TOTAL_DURATION_MS = ANIMATION_ENTRY_DURATION_MS
     + ANIMATION_HOLD_DURATION_MS
     + ANIMATION_FADE_DURATION_MS;
