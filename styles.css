@@ -52,7 +52,7 @@ body {
 
 /* Keep main content centered and legible on wide screens. */
 .content-shell {
-  max-width: 1400px;
+  max-width: 1500px;
   margin: 0 auto;
 }
 
@@ -837,6 +837,7 @@ input.inline-number {
   flex-direction: column;
   gap: 6px;
   align-items: stretch;
+  justify-content: flex-start;
   padding: 6px 8px;
   border: 1px solid var(--panel-border);
   border-radius: var(--radius);
