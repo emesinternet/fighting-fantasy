@@ -34,7 +34,7 @@
           </div>
         </div>
         <div class="section stat-grid">
-          <div class="stat-row justify-center">
+          <div class="stat-row justify-center" data-primary="true">
             <label>Skill <span id="starting-skill" class="starting-chip">-</span>
               <input type="number" id="skill" value="0" min="0" max="999" class="inline-number">
             </label>
@@ -43,9 +43,6 @@
             </label>
             <label>Luck <span id="starting-luck" class="starting-chip">-</span>
               <input type="number" id="luck" value="0" min="0" max="999" class="inline-number">
-            </label>
-            <label id="magic-stat" class="hidden">Magic <span id="starting-magic" class="starting-chip">-</span>
-              <input type="number" id="magic" value="0" min="0" max="999" class="inline-number">
             </label>
           </div>
           <div class="row stat-actions">
@@ -73,18 +70,15 @@
             <div class="notes-columns">
               <label>Gold Pieces <textarea id="gold"></textarea></label>
               <label>Equipment <textarea id="equipment"></textarea></label>
-            </div>
-            <div class="notes-lower">
               <label class="notes-full treasures-label">Treasures <textarea id="treasure"></textarea></label>
-              <div id="spellsWrapper" class="notes-full spells-wrapper">
-                <div class="spells-label-row">
-                  <span class="spells-label">Spells</span>
-                  <span id="spellsRemaining" class="spells-remaining" aria-live="polite">-</span>
-                </div>
-                <p id="spellsHelperText" class="helper-text">Prepare spells with your Magic, then tap a spell to cast it.</p>
-                <div id="spellsPanel" class="spells-card hidden">
-                  <div id="spellsTable" class="spells-table"></div>
-                </div>
+            </div>
+            <div id="spellsWrapper" class="notes-full spells-wrapper">
+              <div class="spells-label-row" aria-live="polite">
+                <span class="spells-label">Spells</span>
+                <span id="spellsRemaining" class="spells-remaining starting-chip">-</span>
+              </div>
+              <div id="spellsPanel" class="spells-card hidden">
+                <div id="spellsTable" class="spells-table"></div>
               </div>
             </div>
           </div>

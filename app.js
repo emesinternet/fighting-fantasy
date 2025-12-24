@@ -52,7 +52,7 @@
       key: 'creatureCopy',
       name: 'Creature Copy',
       description: 'Copy an enemy you are fighting, matching their Skill and Stamina.',
-      effect: 'log'
+      effect: 'creatureCopy'
     },
     esp: {
       key: 'esp',
@@ -170,7 +170,6 @@
   const spellsWrapper = document.getElementById('spellsWrapper');
   const spellsPanel = document.getElementById('spellsPanel');
   const spellsTable = document.getElementById('spellsTable');
-  const spellsHelperText = document.getElementById('spellsHelperText');
   const spellsRemaining = document.getElementById('spellsRemaining');
 
   // Animation overlay elements for action highlights.
@@ -263,6 +262,15 @@
 
   const getEnemyModifiers = (enemy) => normalizeEnemyModifiers(enemy?.modifiers || createDefaultEnemyModifiers());
 
+  const findEnemyIndexById = (id) => enemies.findIndex((enemy) => enemy.id === id);
+
+  const removeEnemyById = (id) => {
+    const index = findEnemyIndexById(id);
+    if (index >= 0) {
+      removeEnemy(index);
+    }
+  };
+
   // Keep enemy naming consistent for logs, defaulting to a stable identifier if a custom name is missing.
   const formatEnemyName = (enemy) => {
     if (!enemy) {
@@ -276,19 +284,19 @@
     }
     return 'Enemy';
   };
+  const formatEnemyOptionLabel = (enemy) => `${formatEnemyName(enemy)} (Skill ${enemy.skill || 0}, Stamina ${enemy.stamina || 0})`;
 
   // Format log entries with safe markup and lightweight emphasis to make combat updates easy to scan.
   const escapeHtml = (text) => text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+    .replace(/"/g, '&quot;');
 
   const emphasizeLogTokens = (message) => {
     let safe = escapeHtml(message);
     safe = safe.replace(/\b(\d+)\b/g, '<span class="log-number">$1</span>');
-    safe = safe.replace(/\b(Lucky!?|Unlucky!?|Skill|Stamina|Luck|damage|defeated|restored|increased|escape|escaped|potion)\b/gi,
+    safe = safe.replace(/\b(Lucky!?|Unlucky!?|Skill|Stamina|Luck|Spell|damage|defeated|restored|increased|escape|escaped|potion)\b/gi,
       '<span class="log-key">$1</span>');
     return safe;
   };
@@ -458,8 +466,6 @@
     renderDecisionLog();
   };
 
-  const totalPreparedSpells = () => Object.values(preparedSpells).reduce((sum, value) => sum + parseNumber(value, 0, 0, 999), 0);
-
   const renderSpellsPanel = () => {
     if (!spellsPanel || !spellsTable) {
       return;
@@ -477,9 +483,6 @@
       preparedSpellLimit = 0;
       if (spellsRemaining) {
         spellsRemaining.textContent = '-';
-      }
-      if (spellsHelperText) {
-        spellsHelperText.textContent = 'Prepare spells with your Magic, then tap a spell to cast it.';
       }
       return;
     }
@@ -504,33 +507,35 @@
         row.setAttribute('aria-label', `Cast ${spell.name} (${spell.count} remaining)`);
         row.addEventListener('click', () => castSpell(spell.key));
 
+        const header = document.createElement('div');
+        header.className = 'spell-row-header';
+
         const text = document.createElement('div');
+        text.className = 'spell-row-body';
         const title = document.createElement('h5');
         title.textContent = spell.name;
-        text.appendChild(title);
+        header.appendChild(title);
+
         const description = document.createElement('p');
         description.textContent = spell.description;
         description.title = spell.description;
-        text.appendChild(description);
 
         const count = document.createElement('div');
         count.className = 'spell-count';
         count.textContent = `x${spell.count}`;
 
+        header.appendChild(count);
+        text.appendChild(header);
+        text.appendChild(description);
+
         row.appendChild(text);
-        row.appendChild(count);
         spellsTable.appendChild(row);
       });
     }
 
     // Keep spells hidden for books that do not support them while surfacing remaining casts for active adventures.
-    const totalPrepared = totalPreparedSpells();
-    const effectiveLimit = preparedSpellLimit ?? initialStats.magic ?? player.magic ?? 0;
     const remainingTotal = activePrepared.reduce((sum, spell) => sum + (spell.count || 0), 0);
 
-    if (spellsHelperText) {
-      spellsHelperText.textContent = `Prepared ${totalPrepared}/${effectiveLimit} spells. Tap a spell to cast it.`;
-    }
     if (spellsRemaining) {
       spellsRemaining.textContent = `${remainingTotal} left`;
     }
@@ -576,7 +581,9 @@
           name: safeName,
           skill: parseNumber(enemy.skill, 0, 0, 999),
           stamina: parseNumber(enemy.stamina, 0, 0, 999),
-          modifiers: normalizeEnemyModifiers(enemy.modifiers)
+          modifiers: normalizeEnemyModifiers(enemy.modifiers),
+          isCopy: Boolean(enemy.isCopy),
+          copiedFromId: Number.isFinite(enemy.copiedFromId) ? enemy.copiedFromId : null
         };
       });
     }
@@ -1041,7 +1048,7 @@
       subline: 'Potion power surges through you.'
     },
     castSpell: {
-      src: 'img/player-cast-spell.svg',
+      src: 'img/player-casts-spell.png',
       alt: 'The hero channels arcane energy',
       subline: 'You unleash a prepared spell.'
     },
@@ -1760,8 +1767,7 @@
       enemies.forEach((enemy, index) => {
         const option = document.createElement('option');
         option.value = index;
-        const enemyLabel = formatEnemyName(enemy);
-        option.textContent = `${enemyLabel} (Skill ${enemy.skill || 0}, Stamina ${enemy.stamina || 0})`;
+        option.textContent = formatEnemyOptionLabel(enemy);
         enemySelect.appendChild(option);
       });
     }
@@ -1855,7 +1861,109 @@
     modal.appendChild(actions);
   };
 
+  // Present a reusable enemy selector for spells and commands that need targeting context.
+  const showEnemySelectModal = ({
+    title,
+    description,
+    filter,
+    emptyMessage = 'No enemies available.',
+    confirmLabel = 'Confirm'
+  }) => new Promise((resolve) => {
+    const eligible = enemies
+      .map((enemy, index) => ({ enemy, index }))
+      .filter(({ enemy, index }) => (typeof filter === 'function' ? filter(enemy, index) : true));
+
+    if (!eligible.length) {
+      alert(emptyMessage);
+      resolve(null);
+      return;
+    }
+
+    const { modal, close } = createModal(title, description, { compact: true });
+
+    const field = document.createElement('div');
+    field.className = 'modal-field';
+
+    const label = document.createElement('label');
+    label.htmlFor = 'enemy-select';
+    label.textContent = 'Enemy';
+
+    const select = document.createElement('select');
+    select.id = 'enemy-select';
+    eligible.forEach(({ enemy, index }) => {
+      const option = document.createElement('option');
+      option.value = index;
+      option.textContent = formatEnemyOptionLabel(enemy);
+      select.appendChild(option);
+    });
+
+    field.appendChild(label);
+    field.appendChild(select);
+    modal.appendChild(field);
+
+    const actions = document.createElement('div');
+    actions.className = 'modal-actions';
+
+    const cancel = document.createElement('button');
+    cancel.className = 'btn btn-negative';
+    cancel.textContent = 'Cancel';
+    cancel.addEventListener('click', () => {
+      close();
+      resolve(null);
+    });
+
+    const confirm = document.createElement('button');
+    confirm.className = 'btn btn-positive';
+    confirm.textContent = confirmLabel;
+    confirm.addEventListener('click', () => {
+      const chosenIndex = parseNumber(select.value, -1, -1, enemies.length - 1);
+      if (chosenIndex < 0) {
+        alert('Please choose an enemy first.');
+        return;
+      }
+      close();
+      resolve(chosenIndex);
+    });
+
+    actions.appendChild(cancel);
+    actions.appendChild(confirm);
+    modal.appendChild(actions);
+  });
+
   // Player interactions ----------------------------------------------------
+  const createCopiedEnemyFrom = (sourceEnemy) => ({
+    name: `Copy of ${formatEnemyName(sourceEnemy)}`,
+    skill: parseNumber(sourceEnemy?.skill, 0, 0, 999),
+    stamina: parseNumber(sourceEnemy?.stamina, 0, 0, 999),
+    modifiers: createDefaultEnemyModifiers(),
+    isCopy: true,
+    copiedFromId: Number.isFinite(sourceEnemy?.id) ? sourceEnemy.id : null
+  });
+
+  // Creature Copy duplicates a foe as an allied entry and keeps it pinned to the top of the roster.
+  const handleCreatureCopySpell = async () => {
+    const targetIndex = await showEnemySelectModal({
+      title: 'Creature Copy',
+      description: 'Select an enemy to duplicate as your ally.',
+      filter: (enemy) => !enemy.isCopy,
+      emptyMessage: 'No eligible enemies to copy. Add a foe first.'
+    });
+
+    if (targetIndex === null) {
+      return false;
+    }
+
+    const enemyToCopy = enemies[targetIndex];
+    if (!enemyToCopy) {
+      alert('That enemy is no longer available.');
+      return false;
+    }
+
+    addEnemy(createCopiedEnemyFrom(enemyToCopy), { atTop: true });
+    logMessage(`Creature Copy creates an ally from ${formatEnemyName(enemyToCopy)}.`, 'success');
+    return true;
+  };
+
   const applySpellEffect = (spell) => {
     if (!spell) return;
     if (spell.effect === 'restoreLuck') {
@@ -1893,7 +2001,7 @@
     logMessage(`Spell cast: ${spell.name}. ${spell.description}`, 'info');
   };
 
-  const castSpell = (spellKey) => {
+  const castSpell = async (spellKey) => {
     const spellsAvailable = activeSpells();
     const spell = spellsAvailable.find((entry) => entry.key === spellKey);
     if (!spell) {
@@ -1905,9 +2013,24 @@
       alert('No prepared copies of that spell remain.');
       return;
     }
-    preparedSpells[spellKey] = remaining - 1;
-    applySpellEffect(spell);
+
+    const spendSpell = () => {
+      preparedSpells[spellKey] = Math.max(0, remaining - 1);
+    };
+
+    if (spell.effect === 'creatureCopy') {
+      const copied = await handleCreatureCopySpell();
+      if (!copied) {
+        return;
+      }
+      spendSpell();
+    } else {
+      spendSpell();
+      applySpellEffect(spell);
+    }
+
     renderSpellsPanel();
+    showActionVisual('castSpell', { subline: spell.description || 'You unleash a prepared spell.' });
   };
 
   const handleEatMeal = () => {
@@ -2183,12 +2306,18 @@
       enemy.modifiers = getEnemyModifiers(enemy);
       const box = document.createElement('div');
       box.className = 'enemy-box';
+      if (enemy.isCopy) {
+        box.classList.add('enemy-copy');
+      }
 
       const header = document.createElement('div');
       header.className = 'enemy-header';
 
       const title = document.createElement('strong');
       title.textContent = formatEnemyName(enemy);
+      if (enemy.isCopy) {
+        title.style.color = 'rgba(255, 207, 111, 1)';
+      }
       header.appendChild(title);
 
       const stats = document.createElement('div');
@@ -2225,18 +2354,29 @@
 
       const actions = document.createElement('div');
       actions.className = 'enemy-actions';
+      if (enemy.isCopy) {
+        actions.classList.add('copy-actions');
+      }
 
       const attackButton = document.createElement('button');
-      attackButton.textContent = 'Attack';
+      attackButton.textContent = enemy.isCopy ? 'Command Attack' : 'Attack';
       attackButton.className = 'btn btn-positive attack-button';
-      attackButton.addEventListener('click', () => performAttack(index));
+      attackButton.addEventListener('click', () => {
+        if (enemy.isCopy) {
+          commandCopyAttack(index);
+        } else {
+          performAttack(index);
+        }
+      });
       actions.appendChild(attackButton);
 
-      const modifierButton = document.createElement('button');
-      modifierButton.textContent = 'Modifier';
-      modifierButton.className = 'btn btn-neutral';
-      modifierButton.addEventListener('click', () => showEnemyModifierDialog(index));
-      actions.appendChild(modifierButton);
+      if (!enemy.isCopy) {
+        const modifierButton = document.createElement('button');
+        modifierButton.textContent = 'Modifier';
+        modifierButton.className = 'btn btn-neutral';
+        modifierButton.addEventListener('click', () => showEnemyModifierDialog(index));
+        actions.appendChild(modifierButton);
+      }
 
       const removeButton = document.createElement('button');
       removeButton.textContent = 'Remove';
@@ -2353,7 +2493,8 @@
     modal.appendChild(form);
   };
 
-  function addEnemy(initial = { skill: 0, stamina: 0 }) {
+  function addEnemy(initial = { skill: 0, stamina: 0 }, options = {}) {
+    const atTop = Boolean(options.atTop);
     const safeId = Number.isFinite(initial?.id) ? initial.id : nextEnemyId++;
     nextEnemyId = Math.max(nextEnemyId, safeId + 1);
 
@@ -2362,10 +2503,16 @@
       name: typeof initial?.name === 'string' && initial.name.trim() ? initial.name : `Enemy ${safeId}`,
       skill: parseNumber(initial.skill, 0, 0, 999),
       stamina: parseNumber(initial.stamina, 0, 0, 999),
-      modifiers: normalizeEnemyModifiers(initial.modifiers || createDefaultEnemyModifiers())
+      modifiers: normalizeEnemyModifiers(initial.modifiers || createDefaultEnemyModifiers()),
+      isCopy: Boolean(initial.isCopy),
+      copiedFromId: Number.isFinite(initial.copiedFromId) ? initial.copiedFromId : null
     };
 
-    enemies.push(enemy);
+    if (atTop) {
+      enemies.unshift(enemy);
+    } else {
+      enemies.push(enemy);
+    }
     renderEnemies();
   }
 
@@ -2447,6 +2594,83 @@
       showActionVisual(isLucky ? 'blockEnemy' : 'enemyHitYou');
     }
     return { outcome: context.type, lucky: isLucky };
+  };
+
+  // Copied creature combat -----------------------------------------------
+  // Copied allies fight other monsters without triggering the main combat animations.
+  const resolveCopiedCreatureAttack = (copyIndex, targetIndex) => {
+    const copied = enemies[copyIndex];
+    const target = enemies[targetIndex];
+
+    if (!copied || !target) {
+      alert('One of the selected creatures is no longer available.');
+      return;
+    }
+
+    if (copied.skill <= 0 || copied.stamina <= 0) {
+      alert('Set Skill and Stamina for the copied creature before attacking.');
+      return;
+    }
+
+    if (target.skill <= 0 || target.stamina <= 0) {
+      alert('Set Skill and Stamina for the target before attacking.');
+      return;
+    }
+
+    const copyRoll = rollDice(2) + copied.skill;
+    const targetRoll = rollDice(2) + target.skill;
+    logMessage(`${formatEnemyName(copied)} attacks ${formatEnemyName(target)}: ${copyRoll} vs ${targetRoll}.`, 'action');
+
+    if (copyRoll === targetRoll) {
+      logMessage('The copied creature trades feints with no damage dealt.', 'info');
+      return;
+    }
+
+    const copyId = copied.id;
+    const targetId = target.id;
+    const damage = BASE_ENEMY_DAMAGE;
+
+    if (copyRoll > targetRoll) {
+      target.stamina = Math.max(0, target.stamina - damage);
+      logMessage(`${formatEnemyName(target)} takes ${damage} damage from the copied creature.`, 'success');
+      if (target.stamina === 0) {
+        logMessage(`${formatEnemyName(target)} is defeated by the copied creature.`, 'success');
+        removeEnemyById(targetId);
+        return;
+      }
+    } else {
+      copied.stamina = Math.max(0, copied.stamina - damage);
+      logMessage(`${formatEnemyName(copied)} takes ${damage} damage.`, 'danger');
+      if (copied.stamina === 0) {
+        logMessage(`${formatEnemyName(copied)} is destroyed.`, 'warning');
+        removeEnemyById(copyId);
+        return;
+      }
+    }
+
+    renderEnemies();
+  };
+
+  const commandCopyAttack = async (copyIndex) => {
+    const copied = enemies[copyIndex];
+    if (!copied) {
+      alert('Copied creature not found.');
+      return;
+    }
+
+    const targetIndex = await showEnemySelectModal({
+      title: 'Direct Copied Creature',
+      description: `Choose a target for ${formatEnemyName(copied)}.`,
+      filter: (enemy, index) => index !== copyIndex && !enemy.isCopy && enemy.stamina > 0,
+      emptyMessage: 'No valid enemies to attack.',
+      confirmLabel: 'Attack'
+    });
+
+    if (targetIndex === null) {
+      return;
+    }
+
+    resolveCopiedCreatureAttack(copyIndex, targetIndex);
   };
 
   // Combat handling -------------------------------------------------------
