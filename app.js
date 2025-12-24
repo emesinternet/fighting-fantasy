@@ -47,74 +47,75 @@
   let currentBook = '';
 
   // Catalog spells once so book rules can opt into them without duplicating definitions.
-  const SPELL_LIBRARY = {
-    creatureCopy: {
-      key: 'creatureCopy',
-      name: 'Creature Copy',
-      description: 'Copy an enemy, matching their Skill and Stamina.',
-      effect: 'creatureCopy'
-    },
-    esp: {
-      key: 'esp',
-      name: 'E.S.P.',
-      description: 'Psychic mind-control. May provide misleading information.',
-      effect: 'log'
-    },
-    fire: {
-      key: 'fire',
-      name: 'Fire',
-      description: 'All enemies are afraid of fire.',
-      effect: 'log'
-    },
-    foolsGold: {
-      key: 'foolsGold',
-      name: "Fool's Gold",
-      description: 'Temporarily turn ordinary rocks into gold.',
-      effect: 'log'
-    },
-    illusion: {
-      key: 'illusion',
-      name: 'Illusion',
-      description: 'Convincing illusion broken by interaction. Best against intelligent creatures.',
-      effect: 'log'
-    },
-    levitation: {
-      key: 'levitation',
-      name: 'Levitation',
-      description: 'Cast on objects, enemies, or yourself. Controlled while airborne.',
-      effect: 'log'
-    },
-    luck: {
-      key: 'luck',
-      name: 'Luck',
-      description: 'Restore Luck by half of its initial value, up to the initial amount.',
-      effect: 'restoreLuck'
-    },
-    shielding: {
-      key: 'shielding',
-      name: 'Shielding',
-      description: 'Invisible shield that prevents touch. Ineffective against magic.',
-      effect: 'log'
-    },
-    skill: {
-      key: 'skill',
-      name: 'Skill',
-      description: 'Restore Stamina by half of its initial value, up to the initial amount.',
-      effect: 'restoreStamina'
-    },
-    strength: {
-      key: 'strength',
-      name: 'Strength',
-      description: 'Greatly increases strength, which may be hard to control.',
-      effect: 'log'
-    },
-    weakness: {
-      key: 'weakness',
-      name: 'Weakness',
-      description: 'Makes strong enemies weak, but may not affect all foes.',
-      effect: 'log'
-    }
-  };
+ const SPELL_LIBRARY = {
+  creatureCopy: {
+    key: 'creatureCopy',
+    name: 'Creature Copy',
+    description: 'Copy an enemy, matching their Stamina and Stamina.',
+    effect: 'creatureCopy'
+  },
+  esp: {
+    key: 'esp',
+    name: 'E.S.P.',
+    description: 'Psychic mind-control. May provide misleading information.',
+    effect: 'log'
+  },
+  fire: {
+    key: 'fire',
+    name: 'Fire',
+    description: 'All enemies are afraid of fire.',
+    effect: 'log'
+  },
+  foolsGold: {
+    key: 'foolsGold',
+    name: "Fool's Gold",
+    description: 'Temporarily turn ordinary rocks into gold.',
+    effect: 'log'
+  },
+  illusion: {
+    key: 'illusion',
+    name: 'Illusion',
+    description: 'Convincing illusion broken by interaction. Best against intelligent creatures.',
+    effect: 'log'
+  },
+  levitation: {
+    key: 'levitation',
+    name: 'Levitation',
+    description: 'Cast on objects, enemies, or yourself. Controlled while airborne.',
+    effect: 'log'
+  },
+  luck: {
+    key: 'luck',
+    name: 'Luck',
+    description: 'Restore Luck by half of its initial value, up to the initial amount.',
+    effect: 'restoreLuck'
+  },
+  shielding: {
+    key: 'shielding',
+    name: 'Shielding',
+    description: 'Invisible shield that prevents touch. Ineffective against magic.',
+    effect: 'log'
+  },
+  stamina: {
+    key: 'stamina',
+    name: 'Stamina',
+    description: 'Restore Stamina by half of its initial value, up to the initial amount.',
+    effect: 'restoreStamina'
+  },
+  strength: {
+    key: 'strength',
+    name: 'Strength',
+    description: 'Greatly increases strength, which may be hard to control.',
+    effect: 'log'
+  },
+  weakness: {
+    key: 'weakness',
+    name: 'Weakness',
+    description: 'Makes strong enemies weak, but may not affect all foes.',
+    effect: 'log'
+  }
+};
+
 
   // Keep book-specific toggles modular so future titles can add custom stats or rules.
   const BOOK_RULES = {
@@ -141,7 +142,7 @@
         SPELL_LIBRARY.levitation,
         SPELL_LIBRARY.luck,
         SPELL_LIBRARY.shielding,
-        SPELL_LIBRARY.skill,
+        SPELL_LIBRARY.stamina,
         SPELL_LIBRARY.strength,
         SPELL_LIBRARY.weakness
       ],
@@ -1771,9 +1772,9 @@
   };
 
   const potionOptions = [
-    { name: 'Potion of Skill', description: 'Restores Skill to its starting maximum when used.' },
-    { name: 'Potion of Strength', description: 'Restores Stamina to its starting maximum when used.' },
-    { name: 'Potion of Fortune', description: 'Restores Luck and increases your maximum Luck by 1.' }
+    { name: 'Potion of Skill', description: 'Restores Skill to full.' },
+    { name: 'Potion of Strength', description: 'Restores Stamina to full.' },
+    { name: 'Potion of Fortune', description: 'Restores Luck to full and increases your maximum by 1.' }
   ];
 
   const showPotionDialog = (onSelect, onCancel) => {
@@ -2915,11 +2916,11 @@
     let potionSubline = 'Potion restores your vigor.';
     if (player.potion === 'Potion of Skill') {
       player.skill = player.maxSkill;
-      logMessage('Potion of Skill used. Skill restored to max.', 'success');
+      logMessage('Potion of Skill used. Skill restored.', 'success');
       potionSubline = 'Skill returns to its peak.';
     } else if (player.potion === 'Potion of Strength') {
       player.stamina = player.maxStamina;
-      logMessage('Potion of Strength used. Stamina restored to max.', 'success');
+      logMessage('Potion of Strength used. Stamina restored.', 'success');
       potionSubline = 'Stamina surges to full.';
     } else if (player.potion === 'Potion of Fortune') {
       player.maxLuck += 1;
