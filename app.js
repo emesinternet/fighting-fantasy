@@ -291,13 +291,12 @@
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
+    .replace(/"/g, '&quot;');
 
   const emphasizeLogTokens = (message) => {
     let safe = escapeHtml(message);
     safe = safe.replace(/\b(\d+)\b/g, '<span class="log-number">$1</span>');
-    safe = safe.replace(/\b(Lucky!?|Unlucky!?|Skill|Stamina|Luck|damage|defeated|restored|increased|escape|escaped|potion)\b/gi,
+    safe = safe.replace(/\b(Lucky!?|Unlucky!?|Skill|Stamina|Luck|Spell|damage|defeated|restored|increased|escape|escaped|potion)\b/gi,
       '<span class="log-key">$1</span>');
     return safe;
   };
@@ -1946,7 +1945,7 @@
     const targetIndex = await showEnemySelectModal({
       title: 'Creature Copy',
       description: 'Select an enemy to duplicate as your ally.',
-      filter: (enemy) => !enemy.isCopy && (enemy.skill > 0 || enemy.stamina > 0),
+      filter: (enemy) => !enemy.isCopy,
       emptyMessage: 'No eligible enemies to copy. Add a foe first.'
     });
 

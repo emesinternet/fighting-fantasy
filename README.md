@@ -25,6 +25,7 @@ Single-page web sheet for Fighting Fantasy gamebooks. Track player stats, manage
 - Spell preparation uses a compact grid with centered quantity controls and a remaining-spells summary card for easier allocation; prepared spells show how many casts remain and are triggered directly from the adventure sheet.
 - Spells now mirror stat chips for remaining casts and use compact inline headers so descriptions can stretch the full card width.
 - Creature Copy now duplicates a selected enemy into an orange-highlighted ally that can be directed via a dropdown target picker.
+- Creature Copy now prompts for a source enemy even when stats still need to be filled in, and spell log entries keep apostrophes readable with “Spell” highlighted in the adventure log.
 - Treasures sits alongside Gold and Equipment to keep adventure notes aligned on one row.
 - Spell casts always show the spell overlay art with contextual subtext when triggered.
 - Enemy stat inputs now share the same clamped number handling, making quick edits more consistent.
