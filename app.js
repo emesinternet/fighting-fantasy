@@ -1040,6 +1040,11 @@
       alt: 'The hero drinks a potion',
       subline: 'Potion power surges through you.'
     },
+    castSpell: {
+      src: 'img/player-cast-spell.svg',
+      alt: 'The hero channels arcane energy',
+      subline: 'You unleash a prepared spell.'
+    },
     escape: {
       src: 'img/player-escape-battle.png',
       alt: 'The hero slips away from battle',
@@ -1362,7 +1367,7 @@
     );
 
     const grid = document.createElement('div');
-    grid.className = 'grid-three';
+    grid.className = 'grid-four';
     const statCount = Object.keys(statSet).length;
     if (statCount >= 4) {
       grid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(180px, 1fr))';
@@ -1440,7 +1445,7 @@
     );
 
     const grid = document.createElement('div');
-    grid.className = 'grid-three';
+    grid.className = 'grid-four';
 
     const selection = {};
     const safeLimit = Math.max(0, limit || 0);
