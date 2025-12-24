@@ -52,7 +52,7 @@ body {
 
 /* Keep main content centered and legible on wide screens. */
 .content-shell {
-  max-width: 1500px;
+  max-width: 1300px;
   margin: 0 auto;
 }
 
