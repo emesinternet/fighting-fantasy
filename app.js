@@ -1373,9 +1373,10 @@
       { wide: hasMagic }
     );
 
-    const grid = document.createElement('div');
-    grid.className = 'grid-four';
     const statCount = Object.keys(statSet).length;
+    const grid = document.createElement('div');
+    // Keep the roll layout compact when only the three core stats are present.
+    grid.className = statCount >= 4 ? 'grid-four' : 'grid-three';
     if (statCount >= 4) {
       grid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(180px, 1fr))';
     }

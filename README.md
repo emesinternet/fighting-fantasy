@@ -9,6 +9,7 @@ Single-page web sheet for Fighting Fantasy gamebooks. Track player stats, manage
 - Roll Skill (1D6 + 6), Stamina (2D6 + 12), and Luck (1D6 + 6) with rerolls until accepted. Books can introduce additional stats; **Citadel of Chaos** adds Magic (2D6 + 6) to the rolling dialog.
 - Pick a potion (Skill, Strength, or Fortune) to carry into the run unless the chosen book disables potions.
 - When a book supports spellcasting, you will select spells immediately after rolling stats, capped by the stat limit defined for that book.
+- The stat rolling modal keeps a three-column layout unless your chosen book introduces Magic, keeping non-magical runs compact.
 
 ## Saving and loading
 - **Save:** Button left of New Game. Prompts for book page number, then downloads a JSON snapshot that includes the current book name and prefixes the file with it alongside the page and timestamp.
