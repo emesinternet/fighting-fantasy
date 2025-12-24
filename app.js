@@ -167,10 +167,11 @@
   const playerModifierChip = document.getElementById('playerModifierChip');
   const mealControls = document.getElementById('mealControls');
   const potionControls = document.getElementById('potionControls');
+  const spellsWrapper = document.getElementById('spellsWrapper');
   const spellsPanel = document.getElementById('spellsPanel');
   const spellsTable = document.getElementById('spellsTable');
-  const castSpellButton = document.getElementById('castSpell');
   const spellsHelperText = document.getElementById('spellsHelperText');
+  const spellsRemaining = document.getElementById('spellsRemaining');
 
   // Animation overlay elements for action highlights.
   const animationOverlay = document.getElementById('action-overlay');
@@ -465,20 +466,22 @@
     }
     const spellsAvailable = activeSpells();
     const supportsSpells = spellsAvailable.length > 0;
+    if (spellsWrapper) {
+      spellsWrapper.classList.toggle('hidden', !supportsSpells);
+    }
     spellsPanel.classList.toggle('hidden', !supportsSpells);
     spellsTable.innerHTML = '';
 
     if (!supportsSpells) {
       preparedSpells = {};
       preparedSpellLimit = 0;
-      if (castSpellButton) {
-        castSpellButton.classList.add('hidden');
+      if (spellsRemaining) {
+        spellsRemaining.textContent = '-';
+      }
+      if (spellsHelperText) {
+        spellsHelperText.textContent = 'Prepare spells with your Magic, then tap a spell to cast it.';
       }
       return;
-    }
-
-    if (castSpellButton) {
-      castSpellButton.classList.remove('hidden');
     }
 
     const activePrepared = Object.entries(preparedSpells)
@@ -493,13 +496,13 @@
       empty.className = 'spells-empty';
       empty.textContent = 'No spells prepared.';
       spellsTable.appendChild(empty);
-      if (castSpellButton) {
-        castSpellButton.disabled = true;
-      }
     } else {
       activePrepared.forEach((spell) => {
-        const row = document.createElement('div');
+        const row = document.createElement('button');
         row.className = 'spell-row';
+        row.type = 'button';
+        row.setAttribute('aria-label', `Cast ${spell.name} (${spell.count} remaining)`);
+        row.addEventListener('click', () => castSpell(spell.key));
 
         const text = document.createElement('div');
         const title = document.createElement('h5');
@@ -507,6 +510,7 @@
         text.appendChild(title);
         const description = document.createElement('p');
         description.textContent = spell.description;
+        description.title = spell.description;
         text.appendChild(description);
 
         const count = document.createElement('div');
@@ -517,15 +521,18 @@
         row.appendChild(count);
         spellsTable.appendChild(row);
       });
-      if (castSpellButton) {
-        castSpellButton.disabled = activePrepared.length === 0;
-      }
     }
 
+    // Keep spells hidden for books that do not support them while surfacing remaining casts for active adventures.
+    const totalPrepared = totalPreparedSpells();
+    const effectiveLimit = preparedSpellLimit ?? initialStats.magic ?? player.magic ?? 0;
+    const remainingTotal = activePrepared.reduce((sum, spell) => sum + (spell.count || 0), 0);
+
     if (spellsHelperText) {
-      const effectiveLimit = preparedSpellLimit || initialStats.magic || player.magic || 0;
-      const total = totalPreparedSpells();
-      spellsHelperText.textContent = `Prepared ${total}/${effectiveLimit} spells`;
+      spellsHelperText.textContent = `Prepared ${totalPrepared}/${effectiveLimit} spells. Tap a spell to cast it.`;
+    }
+    if (spellsRemaining) {
+      spellsRemaining.textContent = `${remainingTotal} left`;
     }
   };
 
@@ -1437,6 +1444,9 @@
 
     const selection = {};
     const safeLimit = Math.max(0, limit || 0);
+    const plusButtons = {};
+    const minusButtons = {};
+    const inputsMap = {};
     let confirmButton;
 
     const summaryCard = document.createElement('div');
@@ -1452,8 +1462,20 @@
     summaryCard.appendChild(summaryCount);
     summaryCard.appendChild(summaryMeta);
 
+    const getTotalSelected = () => Object.values(selection).reduce((sum, value) => sum + (value || 0), 0);
+
+    const syncControls = (key) => {
+      if (inputsMap[key]) {
+        inputsMap[key].value = selection[key];
+      }
+      if (minusButtons[key]) {
+        minusButtons[key].disabled = selection[key] <= 0;
+      }
+    };
+
+    // Mirror the Citadel spell selection rules by freezing all increments once the total hits the limit.
     const updateSummary = () => {
-      const total = Object.values(selection).reduce((sum, value) => sum + (value || 0), 0);
+      const total = getTotalSelected();
       const remaining = Math.max(0, safeLimit - total);
       summaryCount.textContent = `${remaining} / ${safeLimit}`;
       summaryMeta.textContent = total > safeLimit
@@ -1462,6 +1484,29 @@
       if (confirmButton) {
         confirmButton.disabled = total > safeLimit;
       }
+      const limitReached = safeLimit > 0 && total >= safeLimit;
+      const disableIncrease = safeLimit === 0 || limitReached;
+      Object.values(plusButtons).forEach((button) => {
+        button.disabled = disableIncrease;
+      });
+      Object.keys(selection).forEach((key) => syncControls(key));
+    };
+
+    const setSpellCount = (key, nextValue) => {
+      const currentTotal = getTotalSelected();
+      const currentValue = selection[key] || 0;
+      const desired = Math.max(0, nextValue);
+      const limitCap = Math.max(0, safeLimit);
+      const availableSpace = Math.max(0, limitCap - (currentTotal - currentValue));
+      const cappedValue = Math.min(desired, availableSpace);
+      selection[key] = cappedValue;
+      syncControls(key);
+      updateSummary();
+    };
+
+    const adjustSpellCount = (key, delta) => {
+      const currentValue = selection[key] || 0;
+      setSpellCount(key, currentValue + delta);
     };
 
     spells.forEach((spell) => {
@@ -1475,24 +1520,48 @@
       title.textContent = spell.name;
       header.appendChild(title);
 
+      card.appendChild(header);
+
+      const description = document.createElement('p');
+      description.textContent = spell.description;
+      description.title = spell.description;
+      card.appendChild(description);
+
+      const quantityControls = document.createElement('div');
+      quantityControls.className = 'spell-quantity-controls';
+
+      const minusButton = document.createElement('button');
+      minusButton.className = 'btn btn-neutral';
+      minusButton.textContent = '−';
+      minusButton.type = 'button';
+      minusButton.addEventListener('click', () => adjustSpellCount(spell.key, -1));
+
       const input = document.createElement('input');
       input.type = 'number';
-      input.className = 'spell-input';
+      input.className = 'spell-quantity-input spell-input';
       input.min = '0';
       input.max = String(safeLimit);
       input.value = '0';
       input.setAttribute('aria-label', `Copies of ${spell.name}`);
       input.addEventListener('change', () => {
-        selection[spell.key] = parseNumber(input.value, 0, 0, 999);
-        input.value = selection[spell.key];
-        updateSummary();
+        const parsed = parseNumber(input.value, 0, 0, 999);
+        setSpellCount(spell.key, parsed);
       });
-      header.appendChild(input);
-      card.appendChild(header);
 
-      const description = document.createElement('p');
-      description.textContent = spell.description;
-      card.appendChild(description);
+      const plusButton = document.createElement('button');
+      plusButton.className = 'btn btn-neutral';
+      plusButton.textContent = '+';
+      plusButton.type = 'button';
+      plusButton.addEventListener('click', () => adjustSpellCount(spell.key, 1));
+
+      minusButtons[spell.key] = minusButton;
+      plusButtons[spell.key] = plusButton;
+      inputsMap[spell.key] = input;
+
+      quantityControls.appendChild(minusButton);
+      quantityControls.appendChild(input);
+      quantityControls.appendChild(plusButton);
+      card.appendChild(quantityControls);
       grid.appendChild(card);
     });
 
@@ -1834,64 +1903,6 @@
     preparedSpells[spellKey] = remaining - 1;
     applySpellEffect(spell);
     renderSpellsPanel();
-  };
-
-  const showCastSpellDialog = () => {
-    const spellsAvailable = activeSpells().filter((spell) => parseNumber(preparedSpells[spell.key], 0, 0, 999) > 0);
-    const { modal, close } = createModal('Cast a Spell', 'Choose a prepared spell to use now.');
-
-    if (spellsAvailable.length === 0) {
-      const empty = document.createElement('p');
-      empty.className = 'spells-empty';
-      empty.textContent = 'You have no prepared spells to cast.';
-      modal.appendChild(empty);
-    } else {
-      const grid = document.createElement('div');
-      grid.className = 'grid-three';
-      spellsAvailable.forEach((spell) => {
-        const card = document.createElement('div');
-        card.className = 'option-card';
-
-        const header = document.createElement('div');
-        header.className = 'spell-card-header';
-        const title = document.createElement('h4');
-        title.textContent = spell.name;
-        header.appendChild(title);
-
-        const remaining = document.createElement('div');
-        remaining.className = 'spell-count';
-        remaining.textContent = `x${preparedSpells[spell.key]}`;
-        header.appendChild(remaining);
-
-        card.appendChild(header);
-
-        const description = document.createElement('p');
-        description.textContent = spell.description;
-        card.appendChild(description);
-
-        const castButton = document.createElement('button');
-        castButton.className = 'btn btn-positive';
-        castButton.textContent = 'Cast Spell';
-        castButton.addEventListener('click', () => {
-          castSpell(spell.key);
-          close();
-        });
-
-        card.appendChild(castButton);
-        grid.appendChild(card);
-      });
-      modal.appendChild(grid);
-    }
-
-    const actions = document.createElement('div');
-    actions.className = 'modal-actions';
-    const closeButton = document.createElement('button');
-    closeButton.className = 'btn btn-negative';
-    closeButton.textContent = 'Close';
-    closeButton.addEventListener('click', close);
-
-    actions.appendChild(closeButton);
-    modal.appendChild(actions);
   };
 
   const handleEatMeal = () => {
@@ -2736,15 +2747,6 @@
 
   document.getElementById('addEnemy').addEventListener('click', () => addEnemy());
   document.getElementById('addDecision').addEventListener('click', showDecisionDialog);
-  if (castSpellButton) {
-    castSpellButton.addEventListener('click', () => {
-      if (!activeSpells().length) {
-        alert('Spells are not available for this adventure.');
-        return;
-      }
-      showCastSpellDialog();
-    });
-  }
   bindPlayerInputs();
   renderEnemies();
 
