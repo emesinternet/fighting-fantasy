@@ -21,8 +21,8 @@ Single-page web sheet for Fighting Fantasy gamebooks. Track player stats, manage
 - Hover a Decision Log entry to reveal a pencil icon for quick edits if you need to fix a recorded choice.
 
 ## Map sketchpad
-- Click **Map** to open a sliding modal with a large 16:10 off-white canvas for quick maps or notes.
-- Choose from the color palette or the eraser swatch, then **Save** to keep the drawing in your current adventure and future JSON saves; **Cancel** dismisses without changing the last saved sketch.
+- Click **Map** (or press **M**) to open a sliding modal with a large 16:10 off-white canvas for quick maps or notes.
+- Choose from the lighter ink palette or the eraser swatch, then **Save** (Enter works here too) to keep the drawing in your current adventure and future JSON saves; **Download PNG** exports the current canvas, and **Cancel** dismisses without changing the last saved sketch.
 - Saved sketches reload automatically when you load a save file so mapping progress sticks with your run.
 
 ## Spells
@@ -33,6 +33,8 @@ Single-page web sheet for Fighting Fantasy gamebooks. Track player stats, manage
 - **A:** Add Enemy.
 - **1–9:** Attack the corresponding enemy slot.
 - **R:** Open the General Roll dialog for custom dice.
+- **M:** Open the Map sketchpad.
 - **T:** Test Luck.
 - **F5:** Save game.
 - **F9:** Load game.
+- **Enter:** Activate Save/Apply/Confirm buttons in dialogs (where available); Shift+Enter continues to add a newline in decision text fields.

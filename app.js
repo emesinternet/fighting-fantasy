@@ -473,12 +473,7 @@
 
     cancel.addEventListener('click', close);
     save.addEventListener('click', attemptSave);
-    overlay.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' && !event.shiftKey) {
-        event.preventDefault();
-        attemptSave();
-      }
-    });
+    bindDefaultEnterAction(overlay, save, { allowTextareaSubmit: true });
 
     actions.appendChild(cancel);
     actions.appendChild(save);
@@ -918,6 +913,7 @@
       logMessage(`Game saved${pageValue ? ` on Page ${pageValue}` : ''}.`, 'success');
       close();
     });
+    bindDefaultEnterAction(overlay, saveButton);
   };
 
   const showDecisionDialog = () => {
@@ -991,17 +987,11 @@
     };
 
     addButton.addEventListener('click', attemptSave);
-    overlay.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' && !event.shiftKey) {
-        // Let Shift+Enter preserve new lines in the textarea while keeping a quick submit path.
-        event.preventDefault();
-        attemptSave();
-      }
-    });
+    bindDefaultEnterAction(overlay, addButton, { allowTextareaSubmit: true });
   };
 
   const showMapDialog = () => {
-    const { modal, close } = createModal(
+    const { overlay, modal, close } = createModal(
       'Map Sketchpad',
       'Free draw a map or jot notes. Saving stores this canvas with your current adventure and future save files.',
       { slideFromBottom: true }
@@ -1048,12 +1038,12 @@
     hydrateExistingDrawing();
 
     const colorOptions = [
-      { label: 'Ink', value: '#1f1b16' },
-      { label: 'Umber', value: '#6d4b35' },
-      { label: 'Crimson', value: '#b33a3a' },
-      { label: 'Forest', value: '#3f6b2f' },
-      { label: 'Ocean', value: '#2f597f' },
-      { label: 'Steel', value: '#59616c' }
+      { label: 'Ink', value: '#2d261f' },
+      { label: 'Umber', value: '#825d44' },
+      { label: 'Crimson', value: '#c55656' },
+      { label: 'Forest', value: '#4f8240' },
+      { label: 'Ocean', value: '#3f6f99' },
+      { label: 'Steel', value: '#6f7886' }
     ];
 
     let currentColor = colorOptions[0].value;
@@ -1110,8 +1100,12 @@
     const save = document.createElement('button');
     save.className = 'btn btn-positive';
     save.textContent = 'Save';
-    actionGroup.appendChild(save);
+    const download = document.createElement('button');
+    download.className = 'btn btn-neutral';
+    download.textContent = 'Download PNG';
     actionGroup.appendChild(cancel);
+    actionGroup.appendChild(download);
+    actionGroup.appendChild(save);
     controls.appendChild(actionGroup);
     modal.appendChild(controls);
 
@@ -1172,8 +1166,24 @@
       close();
     };
 
+    const downloadCanvas = () => {
+      const downloadUrl = canvas.toDataURL('image/png');
+      const bookSlug = currentBook
+        ? currentBook.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+        : '';
+      const filename = bookSlug ? `${bookSlug}-map.png` : 'map-sketch.png';
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    };
+
     save.addEventListener('click', persistMap);
+    download.addEventListener('click', downloadCanvas);
     cancel.addEventListener('click', close);
+    bindDefaultEnterAction(overlay, save);
   };
 
   // Prompt the book choice up front so saves and logs can stay tied to the right title.
@@ -1256,12 +1266,7 @@
     });
 
     confirm.addEventListener('click', finalizeSelection);
-    overlay.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        finalizeSelection();
-      }
-    });
+    bindDefaultEnterAction(overlay, confirm);
   };
 
   // Restore core data in a predictable order so fields sync correctly.
@@ -1479,6 +1484,29 @@
 
   animationOverlay.addEventListener('click', closeAnimationOverlayInstantly);
 
+  // Keep modal keyboard controls consistent: Enter activates the primary action unless Shift+Enter is used.
+  const bindDefaultEnterAction = (overlay, primaryButton, options = {}) => {
+    if (!overlay || !primaryButton) {
+      return;
+    }
+    const allowTextareaSubmit = Boolean(options.allowTextareaSubmit);
+    const handler = (event) => {
+      if (event.key !== 'Enter' || event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) {
+        return;
+      }
+      const activeElement = document.activeElement;
+      if (!allowTextareaSubmit && activeElement instanceof HTMLTextAreaElement) {
+        return;
+      }
+      if (primaryButton.disabled) {
+        return;
+      }
+      event.preventDefault();
+      primaryButton.click();
+    };
+    overlay.addEventListener('keydown', handler);
+  };
+
   // Lightweight modal scaffolding to keep dialog creation tidy.
   const createModal = (title, description, options = {}) => {
     const overlay = document.createElement('div');
@@ -1661,6 +1689,7 @@
     actions.appendChild(skipButton);
     actions.appendChild(luckButton);
     modal.appendChild(actions);
+    bindDefaultEnterAction(overlay, skipButton);
   });
 
   const syncPlayerInputs = () => {
@@ -1754,7 +1783,7 @@
   // Allow the player to roll each stat multiple times before accepting the spread.
   const showStatRollDialog = (statSet, onComplete) => {
     const hasMagic = Boolean(statSet.magic);
-    const { modal, close } = createModal(
+    const { overlay, modal, close } = createModal(
       'Roll Your Stats',
       'Roll each stat as many times as you like, then start your adventure.',
     );
@@ -1830,10 +1859,11 @@
       close();
       onComplete(currentRolls);
     });
+    bindDefaultEnterAction(overlay, applyButton);
   };
 
   const showSpellSelectionDialog = ({ limit, spells, onConfirm, onCancel, initialSelection }) => {
-    const { modal, close } = createModal(
+    const { overlay, modal, close } = createModal(
       'Prepare Your Spells',
       'Spend your Magic to select spells for this adventure.'
     );
@@ -2007,6 +2037,7 @@
     actions.appendChild(confirmButton);
     modal.appendChild(actions);
     updateSummary();
+    bindDefaultEnterAction(overlay, confirmButton);
   };
 
   const potionOptions = [
@@ -2016,7 +2047,7 @@
   ];
 
   const showPotionDialog = (onSelect, onCancel) => {
-    const { modal, close } = createModal('Choose Your Potion', 'Pick one potion to bring on your adventure.');
+    const { overlay, modal, close } = createModal('Choose Your Potion', 'Pick one potion to bring on your adventure.');
     const grid = document.createElement('div');
     grid.className = 'grid-three';
     let selected = null;
@@ -2076,6 +2107,7 @@
     actions.appendChild(cancelButton);
     actions.appendChild(confirmButton);
     modal.appendChild(actions);
+    bindDefaultEnterAction(overlay, confirmButton);
   };
 
   // General-purpose dice roller for ad-hoc checks outside of combat or Luck.
@@ -2095,7 +2127,7 @@
   };
 
   const showGeneralRollDialog = () => {
-    const { modal, close } = createModal('Roll Dice', 'Choose dice for miscellaneous rolls.', { compact: true });
+    const { overlay, modal, close } = createModal('Roll Dice', 'Choose dice for miscellaneous rolls.', { compact: true });
 
     const field = document.createElement('div');
     field.className = 'modal-field';
@@ -2139,6 +2171,7 @@
     actions.appendChild(cancel);
     actions.appendChild(rollButton);
     modal.appendChild(actions);
+    bindDefaultEnterAction(overlay, rollButton);
   };
 
   // Offer context-aware Luck testing with clear options and enemy targeting.
@@ -2273,7 +2306,7 @@
       return;
     }
 
-    const { modal, close } = createModal(title, description, { compact: true });
+    const { overlay, modal, close } = createModal(title, description, { compact: true });
 
     const field = document.createElement('div');
     field.className = 'modal-field';
@@ -2322,6 +2355,7 @@
     actions.appendChild(cancel);
     actions.appendChild(confirm);
     modal.appendChild(actions);
+    bindDefaultEnterAction(overlay, confirm);
   });
 
   // Player interactions ----------------------------------------------------
@@ -2462,7 +2496,7 @@
   };
 
   const showPlayerModifierDialog = () => {
-    const { modal, close } = createModal(
+    const { overlay, modal, close } = createModal(
       'Adjust Player Modifiers',
       'Tweak how your hero handles incoming and outgoing damage.',
       { compact: true }
@@ -2551,6 +2585,7 @@
     actions.appendChild(apply);
     form.appendChild(actions);
     modal.appendChild(form);
+    bindDefaultEnterAction(overlay, apply);
   };
 
   const formatModifierPart = (value, emoji) => {
@@ -2791,7 +2826,7 @@
     }
 
     const modifiers = getEnemyModifiers(enemy);
-    const { modal, close } = createModal(
+    const { overlay, modal, close } = createModal(
       `Modify ${formatEnemyName(enemy)}`,
       'Adjust how this foe trades damage with you.',
       { compact: true }
@@ -2885,6 +2920,7 @@
     actions.appendChild(apply);
     form.appendChild(actions);
     modal.appendChild(form);
+    bindDefaultEnterAction(overlay, apply);
   };
 
   function addEnemy(initial = { skill: 0, stamina: 0 }, options = {}) {
@@ -3324,6 +3360,12 @@
     if (key === 'r') {
       event.preventDefault();
       showGeneralRollDialog();
+      return;
+    }
+
+    if (key === 'm') {
+      event.preventDefault();
+      showMapDialog();
       return;
     }
 
