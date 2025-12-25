@@ -35,7 +35,7 @@
   };
 
   // Render the sketchpad modal, persisting the canvas into the shared state.
-  const showMapDialog = ({ currentBook, onSaved, logMessage }) => {
+  const showMapDialog = ({ currentBook, onSaved, logMessage } = {}) => {
     if (mapModalOpen) {
       return;
     }
