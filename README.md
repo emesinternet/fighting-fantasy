@@ -22,7 +22,7 @@ Single-page web sheet for Fighting Fantasy gamebooks. Track player stats, manage
 
 ## Map sketchpad
 - Click **Map** (or press **M**) to open a sliding modal with a large 16:10 off-white canvas for quick maps or notes.
-- Choose from the lighter ink palette or the eraser swatch, then **Save** (Enter works here too) to keep the drawing in your current adventure and future JSON saves; **Download PNG** exports the current canvas, and **Cancel** dismisses without changing the last saved sketch.
+- Choose from the lighter ink palette or the eraser swatch; the cursor outlines the current brush size (with a larger halo for the eraser). **Save** (Enter works here too) keeps the drawing in your current adventure and future JSON saves; **Download PNG** exports the current canvas, and **Cancel** dismisses without changing the last saved sketch.
 - Saved sketches reload automatically when you load a save file so mapping progress sticks with your run.
 
 ## Spells

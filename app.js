@@ -211,6 +211,8 @@
   const MAP_CANVAS_WIDTH = 1600;
   const MAP_CANVAS_HEIGHT = 1000;
   const MAP_CANVAS_BACKGROUND = '#f3efe3';
+  const MAP_BRUSH_WIDTH = 4.5;
+  const MAP_ERASER_WIDTH = 24;
 
   // Keep note fields tidy with a shared reset helper for new games.
   const resetNotes = () => {
@@ -422,7 +424,7 @@
     pageInput.id = 'decision-edit-page-number';
     pageInput.type = 'number';
     pageInput.min = '1';
-    pageInput.placeholder = 'e.g. 120';
+    pageInput.placeholder = '120';
     pageInput.value = entry.pageNumber || '';
     pageField.appendChild(pageLabel);
     pageField.appendChild(pageInput);
@@ -434,7 +436,7 @@
     decisionLabel.htmlFor = 'decision-edit-text';
     const decisionInput = document.createElement('textarea');
     decisionInput.id = 'decision-edit-text';
-    decisionInput.placeholder = 'e.g. Took the west tunnel';
+    decisionInput.placeholder = 'Took the west tunnel';
     decisionInput.value = entry.decision || entry.message || '';
     decisionField.appendChild(decisionLabel);
     decisionField.appendChild(decisionInput);
@@ -884,7 +886,7 @@
     pageInput.id = 'save-page-number';
     pageInput.type = 'number';
     pageInput.min = '1';
-    pageInput.placeholder = 'e.g. 237';
+    pageInput.placeholder = '237';
 
     field.appendChild(label);
     field.appendChild(pageInput);
@@ -935,7 +937,7 @@
     pageInput.id = 'decision-page-number';
     pageInput.type = 'number';
     pageInput.min = '1';
-    pageInput.placeholder = 'e.g. 120';
+    pageInput.placeholder = '120';
     pageField.appendChild(pageLabel);
     pageField.appendChild(pageInput);
 
@@ -946,7 +948,7 @@
     decisionLabel.htmlFor = 'decision-text';
     const decisionInput = document.createElement('textarea');
     decisionInput.id = 'decision-text';
-    decisionInput.placeholder = 'e.g. Took the west tunnel';
+    decisionInput.placeholder = 'Took the west tunnel';
     decisionField.appendChild(decisionLabel);
     decisionField.appendChild(decisionInput);
 
@@ -990,11 +992,23 @@
     bindDefaultEnterAction(overlay, addButton, { allowTextareaSubmit: true });
   };
 
+  let mapModalOpen = false;
+
   const showMapDialog = () => {
+    if (mapModalOpen) {
+      return;
+    }
+    mapModalOpen = true;
     const { overlay, modal, close } = createModal(
       'Map Sketchpad',
       'Free draw a map or jot notes. Saving stores this canvas with your current adventure and future save files.',
-      { slideFromBottom: true }
+      {
+        slideFromBottom: true,
+        onClose: () => {
+          mapModalOpen = false;
+          hideCursor();
+        }
+      }
     );
 
     modal.classList.add('map-modal');
@@ -1008,6 +1022,9 @@
     canvas.width = MAP_CANVAS_WIDTH;
     canvas.height = MAP_CANVAS_HEIGHT;
     canvasWrapper.appendChild(canvas);
+    const cursor = document.createElement('div');
+    cursor.className = 'map-cursor';
+    canvasWrapper.appendChild(cursor);
     modal.appendChild(canvasWrapper);
 
     const ctx = canvas.getContext('2d');
@@ -1050,6 +1067,32 @@
     let erasing = false;
     const swatches = [];
 
+    // Mirror the current stroke width and color with a lightweight cursor ring.
+    const getBrushWidth = () => (erasing ? MAP_ERASER_WIDTH : MAP_BRUSH_WIDTH);
+
+    const refreshCursorStyle = (rect) => {
+      const bounds = rect || canvas.getBoundingClientRect();
+      const scaleX = bounds.width / MAP_CANVAS_WIDTH;
+      const scaleY = bounds.height / MAP_CANVAS_HEIGHT;
+      const averageScale = (scaleX + scaleY) / 2;
+      const pixelSize = getBrushWidth() * averageScale;
+      cursor.style.width = `${pixelSize}px`;
+      cursor.style.height = `${pixelSize}px`;
+      cursor.style.borderColor = erasing ? MAP_CANVAS_BACKGROUND : currentColor;
+    };
+
+    const hideCursor = () => {
+      cursor.classList.remove('is-visible');
+    };
+
+    const updateCursorPosition = (event) => {
+      const rect = canvas.getBoundingClientRect();
+      cursor.style.left = `${event.clientX - rect.left}px`;
+      cursor.style.top = `${event.clientY - rect.top}px`;
+      refreshCursorStyle(rect);
+      cursor.classList.add('is-visible');
+    };
+
     const setActiveSwatch = (swatch, colorValue, isEraser = false) => {
       swatches.forEach((item) => item.classList.remove('is-active'));
       if (swatch) {
@@ -1057,6 +1100,7 @@
       }
       currentColor = colorValue;
       erasing = isEraser;
+      refreshCursorStyle();
     };
 
     const controls = document.createElement('div');
@@ -1126,15 +1170,17 @@
       ctx.beginPath();
       ctx.moveTo(x, y);
       ctx.strokeStyle = erasing ? MAP_CANVAS_BACKGROUND : currentColor;
-      ctx.lineWidth = erasing ? 18 : 4.5;
+      ctx.lineWidth = getBrushWidth();
       ctx.lineTo(x, y);
       ctx.stroke();
+      updateCursorPosition(event);
       if (typeof event.pointerId !== 'undefined') {
         canvas.setPointerCapture(event.pointerId);
       }
     };
 
     const continueStroke = (event) => {
+      updateCursorPosition(event);
       if (!drawing) {
         return;
       }
@@ -1142,7 +1188,7 @@
       const { x, y } = getCanvasPoint(event);
       ctx.lineTo(x, y);
       ctx.strokeStyle = erasing ? MAP_CANVAS_BACKGROUND : currentColor;
-      ctx.lineWidth = erasing ? 18 : 4.5;
+      ctx.lineWidth = getBrushWidth();
       ctx.stroke();
     };
 
@@ -1157,8 +1203,15 @@
     canvas.addEventListener('pointerdown', startStroke);
     canvas.addEventListener('pointermove', continueStroke);
     canvas.addEventListener('pointerup', endStroke);
-    canvas.addEventListener('pointerleave', endStroke);
-    canvas.addEventListener('pointercancel', endStroke);
+    canvas.addEventListener('pointerenter', updateCursorPosition);
+    canvas.addEventListener('pointerleave', () => {
+      hideCursor();
+      endStroke();
+    });
+    canvas.addEventListener('pointercancel', () => {
+      hideCursor();
+      endStroke();
+    });
 
     const persistMap = () => {
       mapDrawingDataUrl = canvas.toDataURL('image/png');
@@ -1513,6 +1566,7 @@
     overlay.className = 'modal-overlay';
     overlay.setAttribute('aria-hidden', 'true');
     const slideFromBottom = Boolean(options.slideFromBottom);
+    const onClose = typeof options.onClose === 'function' ? options.onClose : null;
     if (slideFromBottom) {
       overlay.classList.add('modal-overlay-slide');
     }
@@ -1602,6 +1656,9 @@
         return;
       }
       hasClosed = true;
+      if (onClose) {
+        onClose();
+      }
       overlay.remove();
       if (previouslyFocused && document.body.contains(previouslyFocused)) {
         previouslyFocused.focus();
