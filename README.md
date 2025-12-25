@@ -2,7 +2,6 @@
 
 ## Summary
 - Single-page companion sheet for tracking stats, enemies, and notes while playing Fighting Fantasy gamebooks.
-- Supports rerollable stat generation, potion selection, spell prep where applicable, and quick combat/luck utilities.
 
 ## Saving and loading
 - **Save:** Prompts for a page label, then downloads a timestamped JSON snapshot that includes the active book title.
