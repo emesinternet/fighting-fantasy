@@ -1008,6 +1008,7 @@
     );
 
     modal.classList.add('map-modal');
+    modal.classList.add('modal-wide');
 
     const canvasWrapper = document.createElement('div');
     canvasWrapper.className = 'map-canvas-wrapper';

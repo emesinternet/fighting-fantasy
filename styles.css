@@ -718,6 +718,10 @@ button.spell-row:hover:enabled {
   margin-top: 0;
 }
 
+.map-modal {
+  align-self: center;
+}
+
 .map-modal p {
   color: var(--muted);
 }
