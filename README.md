@@ -20,6 +20,11 @@ Single-page web sheet for Fighting Fantasy gamebooks. Track player stats, manage
 - **Decision Log:** Use the **+** button beside the header to record a page number and decision; timestamps remain in the save file for reference but stay hidden in the UI when browsing entries.
 - Hover a Decision Log entry to reveal a pencil icon for quick edits if you need to fix a recorded choice.
 
+## Map sketchpad
+- Click **Map** to open a sliding modal with a large 16:10 off-white canvas for quick maps or notes.
+- Choose from the color palette or the eraser swatch, then **Save** to keep the drawing in your current adventure and future JSON saves; **Cancel** dismisses without changing the last saved sketch.
+- Saved sketches reload automatically when you load a save file so mapping progress sticks with your run.
+
 ## Spells
 - When a book supports magic, the Spells badge shows how many prepared casts you have left. Click it to reopen the spell selection dialog without resetting your adventure so you can correct your prepared list.
 
