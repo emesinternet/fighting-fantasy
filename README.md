@@ -20,4 +20,3 @@
 - **T:** Test Luck.
 - **F5:** Save game.
 - **F9:** Load game.
-- **Enter:** Activate Save/Apply/Confirm buttons in dialogs (where available); Shift+Enter continues to add a newline in decision text fields.
