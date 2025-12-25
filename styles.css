@@ -46,8 +46,9 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  font-size: 15px;
+  font-size: 0.9rem;
   line-height: 1.45;
+  text-wrap: pretty;
 }
 
 /* Keep main content centered and legible on wide screens. */
@@ -158,7 +159,7 @@ label {
 
 .helper-text {
   color: #a9a9a9;
-  font-size: 13px;
+  font-size: 0.7rem;
   margin-top: 4px;
 }
 
@@ -357,8 +358,14 @@ button.spell-row:hover:enabled {
   background: var(--surface-raise);
   display: flex;
   flex-direction: column;
-  gap: 8px;
   height: 100%;
+}
+
+.option-card > select,
+.option-card > textarea,
+.option-card > input[type='number'],
+.option-card > .card-control {
+  margin-bottom: 8px;
 }
 
 .enemy-copy {
@@ -603,12 +610,6 @@ button.spell-row:hover:enabled {
   margin: 12px 0;
 }
 
-@media (max-width: 1080px) {
-  .grid-four {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
 .option-card {
   background: var(--surface-raise);
   transition: border 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
@@ -626,7 +627,7 @@ button.spell-row:hover:enabled {
 
 .option-card p {
   margin: 4px 0;
-  font-size: 0.92rem;
+  font-size: 0.7rem;
   color: var(--muted);
 }
 
@@ -1087,6 +1088,18 @@ input.inline-number {
   gap: 8px;
 }
 
+.spell-card.option-card {
+  gap: 6px;
+}
+
+.spell-card h4 {
+  margin: 0;
+}
+
+.spell-card p {
+  margin: 2px 0 6px;
+}
+
 .spell-input {
   width: 72px;
   text-align: right;
@@ -1096,21 +1109,28 @@ input.inline-number {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  align-items: flex-start;
+  align-items: center;
   gap: 6px;
   min-height: 100%;
   background-color: rgba(138, 199, 255, 0.18);
   border-color: var(--info);
+  text-align: center;
+  & * {
+    margin: 0 !important;
+    color: var(--info) !important;
+  }
 }
 
 .spell-summary-count {
   font-size: 1.4rem;
   font-weight: 800;
-  color: var(--accent-strong);
+  color: var(--info);
+  width: 100%;
+  text-align: center;
 }
 
 .spell-summary-meta {
-  color: var(--muted);
+  color: var(--info);
   margin: 0;
 }
 
@@ -1233,7 +1253,7 @@ blockquote {
 .animation-text {
   max-width: 640px;
   margin: 0;
-  font-size: 1.84rem;
+  font-size: 1.8rem;
   font-weight: 700;
   font-family: 'Cinzel Decorative', 'Uncial Antiqua', 'Inter', serif;
   color: var(--accent-strong);

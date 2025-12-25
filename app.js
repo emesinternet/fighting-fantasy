@@ -1,166 +1,60 @@
 (() => {
-'use strict';
+  'use strict';
 
-// Core player state is tracked separately from the inputs so we can enforce maxima and potion effects.
-  const player = {
-    skill: 0,
-    stamina: 0,
-    luck: 0,
-    magic: 0,
-    maxSkill: 0,
-    maxStamina: 0,
-    maxLuck: 0,
-    maxMagic: 0,
-    meals: 10,
-    potion: null,
-    potionUsed: false
-  };
+  const {
+    rollDice,
+    clamp,
+    parseNumber
+  } = window.ffApp.utils;
+  const {
+    BOOK_OPTIONS,
+    BOOK_RULES,
+    potionOptions,
+    generalRollOptions,
+    baseStatConfigs
+  } = window.ffApp.constants;
+  const {
+    bindDefaultEnterAction,
+    createModal,
+    showActionVisual,
+    showActionVisualAndWait
+  } = window.ffApp.ui;
+  const {
+    getMapDrawing,
+    setMapDrawing,
+    resetMapDrawing,
+    showMapDialog
+  } = window.ffApp.map;
+  const { onClick, byId } = window.ffApp.dom;
+  const logs = window.ffApp.logs;
+  const { logMessage } = logs;
+  const { showSaveDialog, handleLoadFile } = window.ffApp.persistence;
+  const spellsModule = window.ffApp.spells;
+  const state = window.ffApp.state;
+  const { player, playerModifiers, initialStats, logHistory, decisionLogHistory } = state;
 
-  // Light-weight knobs for tailoring how the player trades blows in combat.
-  const playerModifiers = {
-    damageDone: 0,
-    damageReceived: 0,
-    skillBonus: 0
-  };
-
-  // Track the unmodifiable starting maxima so we can surface them alongside the inputs.
-  const initialStats = {
-    skill: 0,
-    stamina: 0,
-    luck: 0,
-    magic: 0
-  };
-
-  const BOOK_OPTIONS = [
-    'Appointment with F.E.A.R.',
-    'Citadel of Chaos',
-    'City of Thieves',
-    'Creature of Havoc',
-    'Deathtrap Dungeon',
-    'Forest of Doom',
-    'House of Hell',
-    'Island of the Lizard King',
-    'Port of Peril',
-    'Warlock of Firetop Mountain (The)',
-  ];
-
-  let currentBook = '';
-
-  // Catalog spells once so book rules can opt into them without duplicating definitions.
- const SPELL_LIBRARY = {
-  creatureCopy: {
-    key: 'creatureCopy',
-    name: 'Creature Copy',
-    description: 'Copy an enemy, matching their Stamina and Stamina.',
-    effect: 'creatureCopy'
-  },
-  esp: {
-    key: 'esp',
-    name: 'E.S.P.',
-    description: 'Psychic mind-control. May provide misleading information.',
-    effect: 'log'
-  },
-  fire: {
-    key: 'fire',
-    name: 'Fire',
-    description: 'All enemies are afraid of fire.',
-    effect: 'log'
-  },
-  foolsGold: {
-    key: 'foolsGold',
-    name: "Fool's Gold",
-    description: 'Temporarily turn ordinary rocks into gold.',
-    effect: 'log'
-  },
-  illusion: {
-    key: 'illusion',
-    name: 'Illusion',
-    description: 'Convincing illusion broken by interaction. Best against intelligent creatures.',
-    effect: 'log'
-  },
-  levitation: {
-    key: 'levitation',
-    name: 'Levitation',
-    description: 'Cast on objects, enemies, or yourself. Controlled while airborne.',
-    effect: 'log'
-  },
-  luck: {
-    key: 'luck',
-    name: 'Luck',
-    description: 'Restore Luck by half of its initial value, up to the initial amount.',
-    effect: 'restoreLuck'
-  },
-  shielding: {
-    key: 'shielding',
-    name: 'Shielding',
-    description: 'Invisible shield that prevents touch. Ineffective against magic.',
-    effect: 'log'
-  },
-  stamina: {
-    key: 'stamina',
-    name: 'Stamina',
-    description: 'Restore Stamina by half of its initial value, up to the initial amount.',
-    effect: 'restoreStamina'
-  },
-  strength: {
-    key: 'strength',
-    name: 'Strength',
-    description: 'Greatly increases strength, which may be hard to control.',
-    effect: 'log'
-  },
-  weakness: {
-    key: 'weakness',
-    name: 'Weakness',
-    description: 'Makes strong enemies weak, but may not affect all foes.',
-    effect: 'log'
-  }
-};
-
-
-  // Keep book-specific toggles modular so future titles can add custom stats or rules.
-  const BOOK_RULES = {
-    'Citadel of Chaos': {
-      supportsPotions: false,
-      supportsMeals: false,
-      extraStats: {
-        magic: {
-          label: 'Magic',
-          roll: () => {
-            const dice = rollDice(2);
-            const total = dice + 6;
-            return { total, detail: `${dice} + 6 = ${total}` };
-          },
-          helper: 'Roll 2D6 + 6'
-        }
-      },
-      spells: [
-        SPELL_LIBRARY.creatureCopy,
-        SPELL_LIBRARY.esp,
-        SPELL_LIBRARY.fire,
-        SPELL_LIBRARY.foolsGold,
-        SPELL_LIBRARY.illusion,
-        SPELL_LIBRARY.levitation,
-        SPELL_LIBRARY.luck,
-        SPELL_LIBRARY.shielding,
-        SPELL_LIBRARY.stamina,
-        SPELL_LIBRARY.strength,
-        SPELL_LIBRARY.weakness
-      ],
-      spellLimitStat: 'magic'
-    }
-  };
-
-  let enemies = [];
   // Preserve stable enemy identifiers so names do not shift when the list changes.
-  let nextEnemyId = 1;
-  let preparedSpells = {};
-  let preparedSpellLimit = 0;
+  let enemies = state.enemies;
+  let nextEnemyId = state.nextEnemyId;
+  let preparedSpells = state.preparedSpells;
+  let preparedSpellLimit = state.preparedSpellLimit;
+  let currentBook = state.currentBook || '';
+  // Keep state mutations in sync with the shared container used across dialogs.
+  const syncEnemies = () => {
+    state.enemies = enemies;
+    state.nextEnemyId = nextEnemyId;
+  };
+  const syncPreparedSpells = () => {
+    state.preparedSpells = preparedSpells;
+    state.preparedSpellLimit = preparedSpellLimit;
+  };
+  const syncCurrentBook = () => {
+    state.currentBook = currentBook;
+  };
 
   const logEl = document.getElementById('log');
-  const logHistory = [];
   const LOG_HISTORY_LIMIT = 1000;
   const decisionLogEl = document.getElementById('decisionLog');
-  const decisionLogHistory = [];
   const DECISION_LOG_HISTORY_LIMIT = 1000;
   const loadFileInput = document.getElementById('loadFileInput');
   const potionStatus = document.getElementById('potionStatus');
@@ -172,18 +66,6 @@
   const spellsPanel = document.getElementById('spellsPanel');
   const spellsTable = document.getElementById('spellsTable');
   const spellsRemaining = document.getElementById('spellsRemaining');
-
-  // Animation overlay elements for action highlights.
-  const animationOverlay = document.getElementById('action-overlay');
-  const animationImage = document.getElementById('action-image');
-  const animationText = document.getElementById('action-text');
-  const animationTimers = [];
-  const ANIMATION_ENTRY_DURATION_MS = 800;
-  const ANIMATION_HOLD_DURATION_MS = 2000;
-  const ANIMATION_FADE_DURATION_MS = 200;
-  const ANIMATION_TOTAL_DURATION_MS = ANIMATION_ENTRY_DURATION_MS
-    + ANIMATION_HOLD_DURATION_MS
-    + ANIMATION_FADE_DURATION_MS;
 
   const inputs = {
     skill: document.getElementById('skill'),
@@ -206,42 +88,11 @@
     equipment: document.getElementById('equipment')
   };
 
-  // Persist a single drawing snapshot (as a data URL) so saves and reloads can keep maps intact.
-  let mapDrawingDataUrl = '';
-  const MAP_CANVAS_WIDTH = 1600;
-  const MAP_CANVAS_HEIGHT = 1000;
-  const MAP_CANVAS_BACKGROUND = '#f3efe3';
-  const MAP_BRUSH_WIDTH = 4.5;
-  const MAP_ERASER_WIDTH = 24;
-
   // Keep note fields tidy with a shared reset helper for new games.
   const resetNotes = () => {
     Object.values(notes).forEach((field) => {
       field.value = '';
     });
-  };
-
-  // Utility helpers --------------------------------------------------------
-  const rollDice = (count) => Array.from({ length: count }, () => Math.floor(Math.random() * 6) + 1)
-    .reduce((sum, value) => sum + value, 0);
-
-  // General-purpose dice helpers so future rolls can cover non-standard die sizes.
-  const rollDieWithSides = (sides) => Math.floor(Math.random() * sides) + 1;
-  const rollCustomDice = (count, sides) => {
-    const values = Array.from({ length: count }, () => rollDieWithSides(sides));
-    const total = values.reduce((sum, value) => sum + value, 0);
-    return { total, values };
-  };
-
-  const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
-
-  // Keep numeric parsing consistent when restoring a save file or clamping manual input.
-  const parseNumber = (value, fallback = 0, min = 0, max = 999) => {
-    const parsed = parseInt(value, 10);
-    if (Number.isFinite(parsed)) {
-      return clamp(parsed, min, max);
-    }
-    return fallback;
   };
 
   // Standard Fighting Fantasy combat deals 2 Stamina damage per successful hit.
@@ -295,218 +146,6 @@
   };
   const formatEnemyOptionLabel = (enemy) => `${formatEnemyName(enemy)} (Skill ${enemy.skill || 0}, Stamina ${enemy.stamina || 0})`;
 
-  // Format log entries with safe markup and lightweight emphasis to make combat updates easy to scan.
-  const escapeHtml = (text) => text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-
-  const emphasizeLogTokens = (message) => {
-    let safe = escapeHtml(message);
-    safe = safe.replace(/\b(\d+)\b/g, '<span class="log-number">$1</span>');
-    safe = safe.replace(/\b(Lucky!?|Unlucky!?|Skill|Stamina|Luck|Spell|damage|defeated|restored|increased|escape|escaped|potion)\b/gi,
-      '<span class="log-key">$1</span>');
-    return safe;
-  };
-
-  // Keep the combat log readable with tone-specific icons and colors.
-  const logToneIcons = {
-    info: '📜',
-    action: '⚔️',
-    success: '✨',
-    warning: '⚠️',
-    danger: '💀'
-  };
-
-  // Reusable renderer so adventure and decision logs stay consistent.
-  const renderLogList = ({
-    container,
-    entries,
-    getIcon,
-    formatMessage,
-    showTimestamp = true,
-    renderActions
-  }) => {
-    container.innerHTML = '';
-
-    entries.forEach((entry, index) => {
-      const row = document.createElement('div');
-      row.className = 'log-entry';
-      row.dataset.tone = entry.tone;
-
-      if (showTimestamp) {
-        const timestamp = document.createElement('span');
-        timestamp.className = 'log-timestamp';
-        const parsedDate = entry.timestamp ? new Date(entry.timestamp) : new Date();
-        timestamp.textContent = `[${parsedDate.toLocaleTimeString()}]`;
-        row.appendChild(timestamp);
-      }
-
-      const icon = document.createElement('span');
-      icon.className = 'log-icon';
-      const chosenIcon = getIcon ? getIcon(entry) : null;
-      icon.textContent = chosenIcon || logToneIcons[entry.tone] || logToneIcons.info;
-
-      const body = document.createElement('span');
-      body.className = 'log-body';
-      const content = formatMessage ? formatMessage(entry) : entry.message;
-      body.innerHTML = emphasizeLogTokens(content || '');
-
-      row.appendChild(icon);
-      row.appendChild(body);
-      if (renderActions) {
-        const actions = renderActions(entry, index);
-        if (actions) {
-          row.appendChild(actions);
-        }
-      }
-      container.appendChild(row);
-    });
-  };
-
-  const renderLog = () => {
-    renderLogList({
-      container: logEl,
-      entries: logHistory,
-      getIcon: (entry) => logToneIcons[entry.tone] || logToneIcons.info,
-      formatMessage: (entry) => entry.message
-    });
-  };
-
-  const logMessage = (message, tone = 'info') => {
-    const timestamp = new Date().toISOString();
-    logHistory.unshift({ message, tone, timestamp });
-    if (logHistory.length > LOG_HISTORY_LIMIT) {
-      logHistory.length = LOG_HISTORY_LIMIT;
-    }
-    renderLog();
-  };
-
-  const addDecisionLogEntry = (pageNumber, decision) => {
-    const timestamp = new Date().toISOString();
-    decisionLogHistory.unshift({
-      pageNumber,
-      decision,
-      message: `Page ${pageNumber}: ${decision}`,
-      timestamp,
-      tone: 'info'
-    });
-    if (decisionLogHistory.length > DECISION_LOG_HISTORY_LIMIT) {
-      decisionLogHistory.length = DECISION_LOG_HISTORY_LIMIT;
-    }
-    renderDecisionLog();
-  };
-
-  // Allow decision entries to be corrected without rebuilding the log.
-  const editDecisionLogEntry = (index) => {
-    const entry = decisionLogHistory[index];
-    if (!entry) {
-      alert('That decision could not be found.');
-      return;
-    }
-
-    const { overlay, modal, close } = createModal(
-      'Edit Decision',
-      'Update the logged page number or wording for this decision.',
-      { compact: true }
-    );
-
-    const form = document.createElement('div');
-    form.className = 'modal-form';
-
-    const pageField = document.createElement('div');
-    pageField.className = 'modal-field';
-    const pageLabel = document.createElement('label');
-    pageLabel.textContent = 'Page Number';
-    pageLabel.htmlFor = 'decision-edit-page-number';
-    const pageInput = document.createElement('input');
-    pageInput.id = 'decision-edit-page-number';
-    pageInput.type = 'number';
-    pageInput.min = '1';
-    pageInput.placeholder = '120';
-    pageInput.value = entry.pageNumber || '';
-    pageField.appendChild(pageLabel);
-    pageField.appendChild(pageInput);
-
-    const decisionField = document.createElement('div');
-    decisionField.className = 'modal-field';
-    const decisionLabel = document.createElement('label');
-    decisionLabel.textContent = 'Decision';
-    decisionLabel.htmlFor = 'decision-edit-text';
-    const decisionInput = document.createElement('textarea');
-    decisionInput.id = 'decision-edit-text';
-    decisionInput.placeholder = 'Took the west tunnel';
-    decisionInput.value = entry.decision || entry.message || '';
-    decisionField.appendChild(decisionLabel);
-    decisionField.appendChild(decisionInput);
-
-    form.appendChild(pageField);
-    form.appendChild(decisionField);
-
-    const actions = document.createElement('div');
-    actions.className = 'modal-actions';
-    const cancel = document.createElement('button');
-    cancel.className = 'btn btn-negative';
-    cancel.textContent = 'Cancel';
-    const save = document.createElement('button');
-    save.className = 'btn btn-positive';
-    save.textContent = 'Save Changes';
-
-    const attemptSave = () => {
-      const pageValue = parseNumber(pageInput.value, NaN, 1, 9999);
-      const decisionValue = decisionInput.value.trim();
-      if (!Number.isFinite(pageValue)) {
-        alert('Please provide the page number for this decision.');
-        return;
-      }
-      if (!decisionValue) {
-        alert('Please describe the decision.');
-        return;
-      }
-      entry.pageNumber = pageValue;
-      entry.decision = decisionValue;
-      entry.message = `Page ${pageValue}: ${decisionValue}`;
-      entry.timestamp = entry.timestamp || new Date().toISOString();
-      renderDecisionLog();
-      logMessage(`Decision updated for Page ${pageValue}.`, 'info');
-      close();
-    };
-
-    cancel.addEventListener('click', close);
-    save.addEventListener('click', attemptSave);
-    bindDefaultEnterAction(overlay, save, { allowTextareaSubmit: true });
-
-    actions.appendChild(cancel);
-    actions.appendChild(save);
-    form.appendChild(actions);
-    modal.appendChild(form);
-  };
-
-  const renderDecisionLog = () => {
-    // Decision entries stay concise in the UI while keeping timestamps in saved data.
-    renderLogList({
-      container: decisionLogEl,
-      entries: decisionLogHistory,
-      getIcon: () => '🧭',
-      formatMessage: (entry) => entry.message || `Page ${entry.pageNumber || '—'} — ${entry.decision}`,
-      showTimestamp: false,
-      renderActions: (_, index) => {
-        const actions = document.createElement('div');
-        actions.className = 'log-entry-actions';
-        const edit = document.createElement('button');
-        edit.type = 'button';
-        edit.className = 'edit-log-button';
-        edit.title = 'Edit decision';
-        edit.setAttribute('aria-label', 'Edit decision entry');
-        edit.textContent = '✎';
-        edit.addEventListener('click', () => editDecisionLogEntry(index));
-        actions.appendChild(edit);
-        return actions;
-      }
-    });
-  };
-
   const updateInitialStatsDisplay = () => {
     const formatStat = (value) => (value ? value : '-');
     if (startingBadges.skill) startingBadges.skill.textContent = formatStat(initialStats.skill);
@@ -525,6 +164,7 @@
 
   const setCurrentBook = (bookName) => {
     currentBook = bookName || '';
+    syncCurrentBook();
   };
 
   const renderCurrentBook = () => {
@@ -538,6 +178,8 @@
   const activeSpells = () => Array.isArray(getActiveBookRules().spells) ? getActiveBookRules().spells : [];
   const activeStatConfigs = () => ({ ...baseStatConfigs, ...(getActiveBookRules().extraStats || {}) });
   const activeSpellLimitStat = () => getActiveBookRules().spellLimitStat;
+  window.ffApp.getActiveSpells = activeSpells;
+  window.ffApp.getActiveSpellLimitStat = activeSpellLimitStat;
 
   const getNotesState = () => ({
     gold: notes.gold.value,
@@ -552,50 +194,11 @@
   };
 
   const getMapState = () => ({
-    image: mapDrawingDataUrl || null
+    image: getMapDrawing() || null
   });
 
   const applyMapState = (savedMap = {}) => {
-    mapDrawingDataUrl = typeof savedMap.image === 'string' ? savedMap.image : '';
-  };
-
-  const resetMapDrawing = () => {
-    mapDrawingDataUrl = '';
-  };
-
-  const applyLogState = (savedLog = []) => {
-    logHistory.length = 0;
-    if (Array.isArray(savedLog)) {
-      savedLog.slice(0, LOG_HISTORY_LIMIT).forEach((entry) => {
-        if (entry && typeof entry.message === 'string') {
-          logHistory.push({
-            message: entry.message,
-            tone: entry.tone || 'info',
-            timestamp: entry.timestamp || new Date().toISOString()
-          });
-        }
-      });
-    }
-    renderLog();
-  };
-
-  const applyDecisionLogState = (savedDecisions = []) => {
-    decisionLogHistory.length = 0;
-    if (Array.isArray(savedDecisions)) {
-      savedDecisions.slice(0, DECISION_LOG_HISTORY_LIMIT).forEach((entry) => {
-        if (entry && typeof entry.decision === 'string') {
-          const safePage = parseNumber(entry.pageNumber, '', 1, 9999);
-          decisionLogHistory.push({
-            pageNumber: safePage,
-            decision: entry.decision,
-            message: entry.message || (safePage ? `Page ${safePage}: ${entry.decision}` : entry.decision),
-            timestamp: entry.timestamp || new Date().toISOString(),
-            tone: entry.tone || 'info'
-          });
-        }
-      });
-    }
-    renderDecisionLog();
+    setMapDrawing(typeof savedMap.image === 'string' ? savedMap.image : '');
   };
 
   const renderSpellsPanel = () => {
@@ -683,6 +286,7 @@
   const resetSpells = () => {
     preparedSpells = {};
     preparedSpellLimit = 0;
+    syncPreparedSpells();
     renderSpellsPanel();
   };
 
@@ -698,6 +302,7 @@
         }
       });
     }
+    syncPreparedSpells();
     renderSpellsPanel();
   };
 
@@ -719,10 +324,11 @@
       onConfirm: (selection, limitValue) => {
         preparedSpells = { ...selection };
         preparedSpellLimit = Math.max(0, limitValue ?? usableLimit);
+        syncPreparedSpells();
         renderSpellsPanel();
-        logMessage('Prepared spells updated.', 'info');
+        logs.logMessage('Prepared spells updated.', 'info');
       },
-      onCancel: () => logMessage('Spell update cancelled.', 'warning')
+      onCancel: () => logs.logMessage('Spell update cancelled.', 'warning')
     });
   };
 
@@ -754,6 +360,7 @@
 
     enemies = restored;
     nextEnemyId = Math.max(maxId + 1, nextEnemyId);
+    syncEnemies();
     renderEnemies();
   };
 
@@ -833,91 +440,6 @@
       limit: preparedSpellLimit
     }
   });
-
-  // Produce a filesystem-safe timestamp that is still easy to read in save filenames.
-  const formatFilenameTimestamp = () => {
-    const now = new Date();
-    const pad = (value) => String(value).padStart(2, '0');
-    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}`;
-  };
-
-  // Sanitize book names so the chosen title can safely prefix downloaded saves.
-  const formatBookForFilename = (bookName) => {
-    if (!bookName) {
-      return 'book-unknown';
-    }
-    const normalized = bookName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-    return normalized || 'book-unknown';
-  };
-
-  const downloadSave = (payload, pageNumberLabel) => {
-    const json = JSON.stringify(payload, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const timestamp = formatFilenameTimestamp();
-    const safePage = pageNumberLabel && String(pageNumberLabel).trim() ? `page-${String(pageNumberLabel).trim()}` : 'page-unknown';
-    const safeBook = formatBookForFilename(currentBook);
-    const filename = `${safeBook}-ff-save-${safePage}-${timestamp}.json`;
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = filename;
-    anchor.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  };
-
-  // Guide the player through choosing a page label before downloading the save JSON.
-  const showSaveDialog = () => {
-    const { modal, close } = createModal(
-      'Save Game',
-      'Enter the page number you stopped on to label the save file.',
-      { compact: true }
-    );
-
-    const form = document.createElement('div');
-    form.className = 'modal-form';
-
-    const field = document.createElement('div');
-    field.className = 'modal-field';
-
-    const label = document.createElement('label');
-    label.textContent = 'Page Number';
-    label.htmlFor = 'save-page-number';
-    const pageInput = document.createElement('input');
-    pageInput.id = 'save-page-number';
-    pageInput.type = 'number';
-    pageInput.min = '1';
-    pageInput.placeholder = '237';
-
-    field.appendChild(label);
-    field.appendChild(pageInput);
-    form.appendChild(field);
-
-    const actions = document.createElement('div');
-    actions.className = 'modal-actions';
-    const cancel = document.createElement('button');
-    cancel.className = 'btn btn-negative';
-    cancel.textContent = 'Cancel';
-    const saveButton = document.createElement('button');
-    saveButton.className = 'btn btn-positive';
-    saveButton.textContent = 'Download Save';
-
-    actions.appendChild(cancel);
-    actions.appendChild(saveButton);
-    form.appendChild(actions);
-
-    modal.appendChild(form);
-
-    cancel.addEventListener('click', () => close());
-    saveButton.addEventListener('click', () => {
-      const pageValue = pageInput.value.trim();
-      const payload = buildSavePayload(pageValue || 'Unknown');
-      downloadSave(payload, pageValue);
-      logMessage(`Game saved${pageValue ? ` on Page ${pageValue}` : ''}.`, 'success');
-      close();
-    });
-    bindDefaultEnterAction(overlay, saveButton);
-  };
-
   const showDecisionDialog = () => {
     const { overlay, modal, close } = createModal(
       'Add Decision',
@@ -984,259 +506,12 @@
         return;
       }
 
-      addDecisionLogEntry(pageValue, decisionValue);
+      logs.addDecisionLogEntry(pageValue, decisionValue);
       close();
     };
 
     addButton.addEventListener('click', attemptSave);
     bindDefaultEnterAction(overlay, addButton, { allowTextareaSubmit: true });
-  };
-
-  let mapModalOpen = false;
-
-  const showMapDialog = () => {
-    if (mapModalOpen) {
-      return;
-    }
-    mapModalOpen = true;
-    const { overlay, modal, close } = createModal(
-      'Map Sketchpad',
-      'Free draw a map or jot notes. Saving stores this canvas with your current adventure and future save files.',
-      {
-        slideFromBottom: true,
-        onClose: () => {
-          mapModalOpen = false;
-          hideCursor();
-        }
-      }
-    );
-
-    modal.classList.add('map-modal');
-    modal.classList.add('modal-wide');
-
-    const canvasWrapper = document.createElement('div');
-    canvasWrapper.className = 'map-canvas-wrapper';
-
-    const canvas = document.createElement('canvas');
-    canvas.className = 'map-canvas';
-    canvas.width = MAP_CANVAS_WIDTH;
-    canvas.height = MAP_CANVAS_HEIGHT;
-    canvasWrapper.appendChild(canvas);
-    const cursor = document.createElement('div');
-    cursor.className = 'map-cursor';
-    canvasWrapper.appendChild(cursor);
-    modal.appendChild(canvasWrapper);
-
-    const ctx = canvas.getContext('2d');
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-
-    const paintBackground = () => {
-      ctx.fillStyle = MAP_CANVAS_BACKGROUND;
-      ctx.fillRect(0, 0, MAP_CANVAS_WIDTH, MAP_CANVAS_HEIGHT);
-    };
-
-    // Keep previous drawings visible whenever the player reopens the map.
-    const hydrateExistingDrawing = () => new Promise((resolve) => {
-      paintBackground();
-      if (!mapDrawingDataUrl) {
-        resolve();
-        return;
-      }
-      const image = new Image();
-      image.onload = () => {
-        ctx.drawImage(image, 0, 0, MAP_CANVAS_WIDTH, MAP_CANVAS_HEIGHT);
-        resolve();
-      };
-      image.onerror = () => resolve();
-      image.src = mapDrawingDataUrl;
-    });
-
-    hydrateExistingDrawing();
-
-    const colorOptions = [
-      { label: 'Ink', value: '#2d261f' },
-      { label: 'Umber', value: '#825d44' },
-      { label: 'Crimson', value: '#c55656' },
-      { label: 'Forest', value: '#4f8240' },
-      { label: 'Ocean', value: '#3f6f99' },
-      { label: 'Steel', value: '#6f7886' }
-    ];
-
-    let currentColor = colorOptions[0].value;
-    let erasing = false;
-    const swatches = [];
-
-    // Mirror the current stroke width and color with a lightweight cursor ring.
-    const getBrushWidth = () => (erasing ? MAP_ERASER_WIDTH : MAP_BRUSH_WIDTH);
-
-    const refreshCursorStyle = (rect) => {
-      const bounds = rect || canvas.getBoundingClientRect();
-      const scaleX = bounds.width / MAP_CANVAS_WIDTH;
-      const scaleY = bounds.height / MAP_CANVAS_HEIGHT;
-      const averageScale = (scaleX + scaleY) / 2;
-      const pixelSize = getBrushWidth() * averageScale;
-      cursor.style.width = `${pixelSize}px`;
-      cursor.style.height = `${pixelSize}px`;
-      cursor.style.borderColor = erasing ? MAP_CANVAS_BACKGROUND : currentColor;
-    };
-
-    const hideCursor = () => {
-      cursor.classList.remove('is-visible');
-    };
-
-    const updateCursorPosition = (event) => {
-      const rect = canvas.getBoundingClientRect();
-      cursor.style.left = `${event.clientX - rect.left}px`;
-      cursor.style.top = `${event.clientY - rect.top}px`;
-      refreshCursorStyle(rect);
-      cursor.classList.add('is-visible');
-    };
-
-    const setActiveSwatch = (swatch, colorValue, isEraser = false) => {
-      swatches.forEach((item) => item.classList.remove('is-active'));
-      if (swatch) {
-        swatch.classList.add('is-active');
-      }
-      currentColor = colorValue;
-      erasing = isEraser;
-      refreshCursorStyle();
-    };
-
-    const controls = document.createElement('div');
-    controls.className = 'map-controls';
-
-    const palette = document.createElement('div');
-    palette.className = 'map-palette';
-
-    colorOptions.forEach((option, index) => {
-      const swatch = document.createElement('button');
-      swatch.type = 'button';
-      swatch.className = 'map-swatch';
-      swatch.style.background = option.value;
-      swatch.title = `${option.label} ink`;
-      swatch.setAttribute('aria-label', `${option.label} ink`);
-      swatch.addEventListener('click', () => setActiveSwatch(swatch, option.value, false));
-      if (index === 0) {
-        setActiveSwatch(swatch, option.value);
-      }
-      swatches.push(swatch);
-      palette.appendChild(swatch);
-    });
-
-    const eraser = document.createElement('button');
-    eraser.type = 'button';
-    eraser.className = 'map-swatch';
-    eraser.title = 'Erase';
-    eraser.setAttribute('aria-label', 'Erase');
-    eraser.style.background = MAP_CANVAS_BACKGROUND;
-    eraser.addEventListener('click', () => setActiveSwatch(eraser, MAP_CANVAS_BACKGROUND, true));
-    palette.appendChild(eraser);
-    swatches.push(eraser);
-
-    controls.appendChild(palette);
-
-    const actionGroup = document.createElement('div');
-    actionGroup.className = 'map-actions';
-    const cancel = document.createElement('button');
-    cancel.className = 'btn btn-negative';
-    cancel.textContent = 'Cancel';
-    const save = document.createElement('button');
-    save.className = 'btn btn-positive';
-    save.textContent = 'Save';
-    const download = document.createElement('button');
-    download.className = 'btn btn-neutral';
-    download.textContent = 'Download';
-    actionGroup.appendChild(cancel);
-    actionGroup.appendChild(download);
-    actionGroup.appendChild(save);
-    controls.appendChild(actionGroup);
-    modal.appendChild(controls);
-
-    const getCanvasPoint = (event) => {
-      const rect = canvas.getBoundingClientRect();
-      return {
-        x: (event.clientX - rect.left) * (canvas.width / rect.width),
-        y: (event.clientY - rect.top) * (canvas.height / rect.height)
-      };
-    };
-
-    let drawing = false;
-
-    const startStroke = (event) => {
-      event.preventDefault();
-      drawing = true;
-      const { x, y } = getCanvasPoint(event);
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.strokeStyle = erasing ? MAP_CANVAS_BACKGROUND : currentColor;
-      ctx.lineWidth = getBrushWidth();
-      ctx.lineTo(x, y);
-      ctx.stroke();
-      updateCursorPosition(event);
-      if (typeof event.pointerId !== 'undefined') {
-        canvas.setPointerCapture(event.pointerId);
-      }
-    };
-
-    const continueStroke = (event) => {
-      updateCursorPosition(event);
-      if (!drawing) {
-        return;
-      }
-      event.preventDefault();
-      const { x, y } = getCanvasPoint(event);
-      ctx.lineTo(x, y);
-      ctx.strokeStyle = erasing ? MAP_CANVAS_BACKGROUND : currentColor;
-      ctx.lineWidth = getBrushWidth();
-      ctx.stroke();
-    };
-
-    const endStroke = () => {
-      if (!drawing) {
-        return;
-      }
-      drawing = false;
-      ctx.closePath();
-    };
-
-    canvas.addEventListener('pointerdown', startStroke);
-    canvas.addEventListener('pointermove', continueStroke);
-    canvas.addEventListener('pointerup', endStroke);
-    canvas.addEventListener('pointerenter', updateCursorPosition);
-    canvas.addEventListener('pointerleave', () => {
-      hideCursor();
-      endStroke();
-    });
-    canvas.addEventListener('pointercancel', () => {
-      hideCursor();
-      endStroke();
-    });
-
-    const persistMap = () => {
-      mapDrawingDataUrl = canvas.toDataURL('image/png');
-      logMessage('Map saved to this adventure and future save files.', 'info');
-      close();
-    };
-
-    const downloadCanvas = () => {
-      const downloadUrl = canvas.toDataURL('image/png');
-      const bookSlug = currentBook
-        ? currentBook.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-        : '';
-      const filename = bookSlug ? `${bookSlug}-map.png` : 'map-sketch.png';
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    };
-
-    save.addEventListener('click', persistMap);
-    download.addEventListener('click', downloadCanvas);
-    cancel.addEventListener('click', close);
-    bindDefaultEnterAction(overlay, save);
   };
 
   // Prompt the book choice up front so saves and logs can stay tied to the right title.
@@ -1304,7 +579,7 @@
       }
       setCurrentBook(chosen);
       renderCurrentBook();
-      logMessage(`Adventure set for ${chosen}.`, 'info');
+      logs.logMessage(`Adventure set for ${chosen}.`, 'info');
       close();
       if (onSelected) {
         onSelected(chosen);
@@ -1332,378 +607,16 @@
     applyNotesState(data.notes);
     applyMapState(data.map);
     applyEnemiesState(data.enemies);
-    applyLogState(Array.isArray(data.log) ? data.log : []);
-    applyDecisionLogState(Array.isArray(data.decisionLog) ? data.decisionLog : []);
+    logs.applyLogState(Array.isArray(data.log) ? data.log : []);
+    logs.applyDecisionLogState(Array.isArray(data.decisionLog) ? data.decisionLog : []);
     if (data.spells) {
-      applySpellsState(data.spells);
+      spellsModule.applySpellsState(data.spells, initialStats, player);
     } else {
-      resetSpells();
+      spellsModule.resetSpells();
     }
     updateResourceVisibility();
     const bookDetail = currentBook ? ` for ${currentBook}` : '';
-    logMessage(`Save loaded${data.pageNumber ? ` from Page ${data.pageNumber}` : ''}${bookDetail}.`, 'success');
-  };
-
-  // Read a JSON save from disk, validate the minimal shape, then hydrate state.
-  const handleLoadFile = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) {
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = (loadEvent) => {
-      try {
-        const parsed = JSON.parse(loadEvent.target.result);
-        if (!parsed.player || !parsed.initialStats) {
-          throw new Error('Save missing required fields.');
-        }
-        applySaveData(parsed);
-      } catch (error) {
-        console.error('Failed to load save', error);
-        alert('Could not load save file. Please ensure it is a valid Fighting Fantasy save.');
-      } finally {
-        event.target.value = '';
-      }
-    };
-    reader.readAsText(file);
-  };
-
-  // Handle the overlay animation lifecycle: fade/slide in image, then text, hold, fade everything out.
-  const clearAnimationTimers = () => {
-    while (animationTimers.length) {
-      clearTimeout(animationTimers.pop());
-    }
-  };
-
-  const resetAnimationClasses = () => {
-    animationImage.classList.remove('animate-in', 'animate-out');
-    animationText.classList.remove('animate-in', 'animate-out');
-  };
-
-  const fadeOutAnimation = () => {
-    animationImage.classList.remove('animate-in');
-    animationText.classList.remove('animate-in');
-    animationImage.classList.add('animate-out');
-    animationText.classList.add('animate-out');
-    animationOverlay.classList.remove('is-visible');
-    animationOverlay.setAttribute('aria-hidden', 'true');
-  };
-
-  // Allow the player to dismiss the overlay immediately without waiting for fades or timers.
-  const closeAnimationOverlayInstantly = () => {
-    clearAnimationTimers();
-    resetAnimationClasses();
-
-    const previousTransition = animationOverlay.style.transition;
-    animationOverlay.style.transition = 'none';
-    animationOverlay.classList.remove('is-visible');
-    animationOverlay.setAttribute('aria-hidden', 'true');
-    // Force style recalculation so the removal takes effect before restoring transitions.
-    void animationOverlay.offsetHeight; // eslint-disable-line no-unused-expressions
-    animationOverlay.style.transition = previousTransition;
-  };
-
-  const playActionAnimation = () => {
-    clearAnimationTimers();
-    resetAnimationClasses();
-
-    // Reset overlay visibility up front so new animations never overlap with a fading one.
-    animationOverlay.classList.remove('is-visible');
-    animationOverlay.setAttribute('aria-hidden', 'true');
-
-    // Restart keyframes reliably on consecutive plays.
-    void animationImage.offsetWidth; // eslint-disable-line no-unused-expressions
-    void animationText.offsetWidth; // eslint-disable-line no-unused-expressions
-
-    animationOverlay.classList.add('is-visible');
-    animationOverlay.setAttribute('aria-hidden', 'false');
-
-    animationTimers.push(setTimeout(() => {
-      animationImage.classList.add('animate-in');
-    }, 40));
-
-    animationTimers.push(setTimeout(() => {
-      animationText.classList.add('animate-in');
-    }, 220));
-
-    animationTimers.push(setTimeout(fadeOutAnimation, ANIMATION_ENTRY_DURATION_MS + ANIMATION_HOLD_DURATION_MS));
-    animationTimers.push(setTimeout(
-      resetAnimationClasses,
-      ANIMATION_ENTRY_DURATION_MS + ANIMATION_HOLD_DURATION_MS + ANIMATION_FADE_DURATION_MS
-    ));
-  };
-
-  // Map game moments to inline action art so the overlay always reinforces the latest move.
-  const actionVisuals = {
-    newGame: {
-      src: 'img/player-new-game.png',
-      alt: 'An adventurer prepares for a fresh quest',
-      subline: 'A new adventure begins.'
-    },
-    eatMeal: {
-      src: 'img/player-eat-meal.png',
-      alt: 'The hero takes time to eat and recover',
-      subline: 'You regain strength from a meal.'
-    },
-    drinkPotion: {
-      src: 'img/player-drink-potion.png',
-      alt: 'The hero drinks a potion',
-      subline: 'Potion power surges through you.'
-    },
-    castSpell: {
-      src: 'img/player-casts-spell.png',
-      alt: 'The hero channels arcane energy',
-      subline: 'You unleash a prepared spell.'
-    },
-    escape: {
-      src: 'img/player-escape-battle.png',
-      alt: 'The hero slips away from battle',
-      subline: 'You escape, lose 2 Stamina.'
-    },
-    blockEnemy: {
-      src: 'img/player-block-enemy.png',
-      alt: 'The hero blocks an enemy strike',
-      subline: 'Lucky block, restore 1 stamina'
-    },
-    enemyHitYou: {
-      src: 'img/player-fail-block-enemy.png',
-      alt: 'The hero is struck by an enemy',
-      subline: 'Unlocky block, lose 1 stamina.'
-    },
-    playerHitEnemy: {
-      src: 'img/player-hit-enemy.png',
-      alt: 'The hero lands a hit on an enemy',
-      subline: 'Your strike lands!'
-    },
-    playerMissEnemy: {
-      src: 'img/player-miss-enemy.png',
-      alt: 'The hero misses an enemy attack',
-      subline: 'Your strike misses'
-    },
-    playerFailAttack: {
-      src: 'img/player-fail-attack.png',
-      alt: 'The hero stumbles after a failed attack',
-      subline: 'Your swing leaves you wide open.'
-    },
-    defeatEnemy: {
-      src: 'img/player-defeat-enemy.png',
-      alt: 'The hero fells an enemy',
-      subline: 'Another foe is vanquished.'
-    },
-    loseCombat: {
-      src: 'img/player-lose-combat.png',
-      alt: 'The hero reels from combat',
-      subline: 'You have been killed. Game Over.'
-    },
-    lose: {
-      src: 'img/player-lose.png',
-      alt: 'The hero collapses from defeat',
-      subline: 'Game Over.'
-    },
-    win: {
-      src: 'img/player-win.png',
-      alt: 'The hero celebrates victory',
-      subline: 'You completed the adventure!'
-    },
-    lucky: {
-      src: 'img/player-lucky-general.png',
-      alt: 'The hero is blessed by luck',
-      subline: 'Luck smiles upon you.'
-    },
-    unlucky: {
-      src: 'img/player-unlucky-general.png',
-      alt: 'The hero suffers an unlucky turn',
-      subline: 'Unlucky.'
-    }
-  };
-
-  const showActionVisual = (key, overrides = {}) => {
-    const visual = actionVisuals[key];
-    if (!visual) {
-      return;
-    }
-    const subline = overrides.subline || visual.subline;
-    animationImage.src = visual.src;
-    animationImage.alt = overrides.alt || visual.alt;
-    animationText.textContent = subline;
-    playActionAnimation();
-  };
-
-  // Give callers a simple way to wait for the overlay to finish before continuing a flow.
-  const showActionVisualAndWait = (key, overrides = {}) => new Promise((resolve) => {
-    showActionVisual(key, overrides);
-    setTimeout(resolve, ANIMATION_TOTAL_DURATION_MS);
-  });
-
-  animationOverlay.addEventListener('click', closeAnimationOverlayInstantly);
-
-  // Keep modal keyboard controls consistent: Enter activates the primary action unless Shift+Enter is used.
-  const bindDefaultEnterAction = (overlay, primaryButton, options = {}) => {
-    if (!overlay || !primaryButton) {
-      return;
-    }
-    const allowTextareaSubmit = Boolean(options.allowTextareaSubmit);
-    const handler = (event) => {
-      if (event.key !== 'Enter' || event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) {
-        return;
-      }
-      const activeElement = document.activeElement;
-      if (!allowTextareaSubmit && activeElement instanceof HTMLTextAreaElement) {
-        return;
-      }
-      if (primaryButton.disabled) {
-        return;
-      }
-      event.preventDefault();
-      primaryButton.click();
-    };
-    overlay.addEventListener('keydown', handler);
-  };
-
-  // Lightweight modal scaffolding to keep dialog creation tidy.
-  const createModal = (title, description, options = {}) => {
-    const overlay = document.createElement('div');
-    overlay.className = 'modal-overlay';
-    overlay.setAttribute('aria-hidden', 'true');
-    const slideFromBottom = Boolean(options.slideFromBottom);
-    const onClose = typeof options.onClose === 'function' ? options.onClose : null;
-    if (slideFromBottom) {
-      overlay.classList.add('modal-overlay-slide');
-    }
-
-    const modal = document.createElement('div');
-    modal.className = 'modal';
-    if (options.wide) {
-      modal.classList.add('modal-wide');
-    }
-    if (options.compact) {
-      modal.classList.add('modal-compact');
-    }
-    if (slideFromBottom) {
-      modal.classList.add('modal-slide');
-    }
-
-    const heading = document.createElement('h3');
-    heading.textContent = title;
-    modal.appendChild(heading);
-
-    if (description) {
-      const desc = document.createElement('p');
-      desc.textContent = description;
-      modal.appendChild(desc);
-    }
-
-    overlay.appendChild(modal);
-    document.body.appendChild(overlay);
-    overlay.setAttribute('aria-hidden', 'false');
-    requestAnimationFrame(() => {
-      if (slideFromBottom) {
-        modal.classList.add('is-visible');
-      }
-    });
-
-    // Keep a simple focus map that works across buttons, form controls, and intentional tabindex targets.
-    const focusableSelectors = [
-      'button',
-      '[href]',
-      'input',
-      'select',
-      'textarea',
-      '[tabindex]:not([tabindex="-1"])'
-    ];
-
-    const getFocusableElements = () => Array.from(
-      modal.querySelectorAll(focusableSelectors.join(','))
-    ).filter((el) => !el.hasAttribute('disabled') && el.tabIndex !== -1 && el.offsetParent !== null);
-
-    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-
-    const focusFirstInteractive = () => {
-      const focusable = getFocusableElements();
-      if (focusable.length > 0) {
-        focusable[0].focus();
-        return;
-      }
-      // Keep the modal itself keyboard reachable when it has no interactive children yet.
-      modal.tabIndex = -1;
-      modal.focus();
-    };
-
-    const trapFocus = (event) => {
-      if (event.key !== 'Tab') {
-        return;
-      }
-      const focusable = getFocusableElements();
-      if (focusable.length === 0) {
-        event.preventDefault();
-        modal.focus();
-        return;
-      }
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-
-    let hasClosed = false;
-    const finishClose = () => {
-      if (hasClosed) {
-        return;
-      }
-      hasClosed = true;
-      if (onClose) {
-        onClose();
-      }
-      overlay.remove();
-      if (previouslyFocused && document.body.contains(previouslyFocused)) {
-        previouslyFocused.focus();
-      }
-    };
-
-    const close = () => {
-      overlay.setAttribute('aria-hidden', 'true');
-      overlay.removeEventListener('keydown', handleKeydown);
-
-      if (!slideFromBottom) {
-        finishClose();
-        return;
-      }
-
-      modal.classList.remove('is-visible');
-      modal.classList.add('is-hiding');
-
-      const handleTransitionEnd = (event) => {
-        if (event.target !== modal || event.propertyName !== 'transform') {
-          return;
-        }
-        modal.removeEventListener('transitionend', handleTransitionEnd);
-        finishClose();
-      };
-
-      modal.addEventListener('transitionend', handleTransitionEnd);
-      setTimeout(() => {
-        modal.removeEventListener('transitionend', handleTransitionEnd);
-        finishClose();
-      }, 500);
-    };
-
-    const handleKeydown = (event) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        close();
-      }
-      trapFocus(event);
-    };
-
-    overlay.addEventListener('keydown', handleKeydown);
-    focusFirstInteractive();
-
-    return { overlay, modal, close };
+    logs.logMessage(`Save loaded${data.pageNumber ? ` from Page ${data.pageNumber}` : ''}${bookDetail}.`, 'success');
   };
 
   // Prompt the player to decide on spending Luck after landing a hit.
@@ -1807,36 +720,6 @@
     usePotionButton.disabled = player.potionUsed;
   };
 
-  const baseStatConfigs = {
-    skill: {
-      label: 'Skill',
-      roll: () => {
-        const dice = rollDice(1);
-        const total = dice + 6;
-        return { total, detail: `${dice} + 6 = ${total}` };
-      },
-      helper: 'Roll 1D6 + 6'
-    },
-    stamina: {
-      label: 'Stamina',
-      roll: () => {
-        const dice = rollDice(2);
-        const total = dice + 12;
-        return { total, detail: `${dice} + 12 = ${total}` };
-      },
-      helper: 'Roll 2D6 + 12'
-    },
-    luck: {
-      label: 'Luck',
-      roll: () => {
-        const dice = rollDice(1);
-        const total = dice + 6;
-        return { total, detail: `${dice} + 6 = ${total}` };
-      },
-      helper: 'Roll 1D6 + 6'
-    }
-  };
-
   // Allow the player to roll each stat multiple times before accepting the spread.
   const showStatRollDialog = (statSet, onComplete) => {
     const hasMagic = Boolean(statSet.magic);
@@ -1869,7 +752,7 @@
 
     Object.entries(statSet).forEach(([key, config]) => {
       const card = document.createElement('div');
-      card.className = 'option-card';
+      card.className = 'option-card spell-card';
 
       const title = document.createElement('h4');
       title.textContent = config.label;
@@ -2097,12 +980,6 @@
     bindDefaultEnterAction(overlay, confirmButton);
   };
 
-  const potionOptions = [
-    { name: 'Potion of Skill', description: 'Restores Skill to full.' },
-    { name: 'Potion of Strength', description: 'Restores Stamina to full.' },
-    { name: 'Potion of Fortune', description: 'Restores Luck to full and increases your maximum by 1.' }
-  ];
-
   const showPotionDialog = (onSelect, onCancel) => {
     const { overlay, modal, close } = createModal('Choose Your Potion', 'Pick one potion to bring on your adventure.');
     const grid = document.createElement('div');
@@ -2167,20 +1044,11 @@
     bindDefaultEnterAction(overlay, confirmButton);
   };
 
-  // General-purpose dice roller for ad-hoc checks outside of combat or Luck.
-  const generalRollOptions = [
-    { value: '1d6', label: '1D6', roll: () => rollCustomDice(1, 6) },
-    { value: '1d4', label: '1D4', roll: () => rollCustomDice(1, 4) },
-    { value: '1d2', label: '1D2', roll: () => rollCustomDice(1, 2) },
-    { value: '2d6', label: '2D6', roll: () => rollCustomDice(2, 6) },
-    { value: 'percent', label: 'Percent Die', roll: () => rollCustomDice(1, 100) }
-  ];
-
   const logGeneralRollResult = (label, rollResult) => {
     const detail = rollResult.values.length > 1
       ? `${rollResult.values.join(' + ')} = ${rollResult.total}`
       : `${rollResult.total}`;
-    logMessage(`Rolled ${label}: ${detail}.`, 'info');
+    logs.logMessage(`Rolled ${label}: ${detail}.`, 'info');
   };
 
   const showGeneralRollDialog = () => {
@@ -2311,6 +1179,7 @@
       card.appendChild(description);
 
       if (option.content) {
+        option.content.classList.add('card-control');
         card.appendChild(option.content);
       }
 
@@ -2445,7 +1314,7 @@
     }
 
     addEnemy(createCopiedEnemyFrom(enemyToCopy), { atTop: true });
-    logMessage(`Creature Copy creates an ally from ${formatEnemyName(enemyToCopy)}.`, 'success');
+    logs.logMessage(`Creature Copy creates an ally from ${formatEnemyName(enemyToCopy)}.`, 'success');
     return true;
   };
 
@@ -2458,7 +1327,7 @@
       player.luck = Math.min(maxLuck, player.luck + restoreAmount);
       syncPlayerInputs();
       const gained = player.luck - before;
-      logMessage(
+      logs.logMessage(
         gained > 0
           ? `${spell.name} restores ${gained} Luck (up to ${maxLuck}).`
           : `${spell.name} has no effect; Luck is already at its starting value.`,
@@ -2474,7 +1343,7 @@
       player.stamina = Math.min(maxStamina, player.stamina + restoreAmount);
       syncPlayerInputs();
       const gained = player.stamina - before;
-      logMessage(
+      logs.logMessage(
         gained > 0
           ? `${spell.name} restores ${gained} Stamina (up to ${maxStamina}).`
           : `${spell.name} has no effect; Stamina is already at its starting value.`,
@@ -2483,8 +1352,10 @@
       return;
     }
 
-    logMessage(`Spell cast: ${spell.name}. ${spell.description}`, 'info');
+    logs.logMessage(`Spell cast: ${spell.name}. ${spell.description}`, 'info');
   };
+
+  window.ffApp.applySpellEffect = applySpellEffect;
 
   const castSpell = async (spellKey) => {
     const spellsAvailable = activeSpells();
@@ -2530,7 +1401,7 @@
     player.meals -= 1;
     player.stamina = clamp(player.stamina + 4, 0, player.maxStamina);
     syncPlayerInputs();
-    logMessage('You eat a meal and regain 4 Stamina.', 'success');
+    logs.logMessage('You eat a meal and regain 4 Stamina.', 'success');
     showActionVisual('eatMeal');
   };
 
@@ -2540,10 +1411,10 @@
     }
     player.stamina = clamp(player.stamina - 2, 0, player.maxStamina);
     syncPlayerInputs();
-    logMessage('You escaped combat and lost 2 Stamina.', 'warning');
+    logs.logMessage('You escaped combat and lost 2 Stamina.', 'warning');
     const defeatedFromEscape = player.stamina === 0;
     if (defeatedFromEscape) {
-      logMessage('You have been killed. Game Over.', 'danger');
+      logs.logMessage('You have been killed. Game Over.', 'danger');
       showActionVisual('loseCombat');
     } else {
       showActionVisual('escape', {
@@ -2634,7 +1505,7 @@
       playerModifiers.skillBonus = parseNumber(inputs['player-skill-bonus'].value, 0, -99, 99);
       renderPlayerModifierSummary();
       renderEnemies();
-      logMessage('Player modifiers updated.', 'info');
+      logs.logMessage('Player modifiers updated.', 'info');
       close();
     });
 
@@ -2706,6 +1577,8 @@
     renderPotionStatus();
     renderSpellsPanel();
   };
+
+  window.ffApp.castSpell = castSpell;
 
   // Keep enemy damage calculations and UI summaries in sync by routing everything through
   // a shared profile that applies modifiers as deltas to the Fighting Fantasy base damage.
@@ -2969,7 +1842,7 @@
 
       enemy.modifiers = updated;
       renderEnemies();
-      logMessage(`${formatEnemyName(enemy)} modifiers updated.`, 'info');
+      logs.logMessage(`${formatEnemyName(enemy)} modifiers updated.`, 'info');
       close();
     });
 
@@ -3019,7 +1892,7 @@
     const isLucky = roll <= player.luck;
     player.luck = Math.max(0, player.luck - 1);
     syncPlayerInputs();
-    logMessage(`Testing Luck: rolled ${roll} vs ${player.luck + 1}. ${isLucky ? 'Lucky!' : 'Unlucky.'}`, 'action');
+    logs.logMessage(`Testing Luck: rolled ${roll} vs ${player.luck + 1}. ${isLucky ? 'Lucky!' : 'Unlucky.'}`, 'action');
 
     const isPlayerHittingEnemy = context?.type === 'playerHitEnemy';
     const isPlayerHitByEnemy = context?.type === 'playerHitByEnemy';
@@ -3048,14 +1921,14 @@
     if (context.type === 'playerHitEnemy') {
       const enemy = enemies[context.index];
       if (!enemy) {
-        logMessage('The selected enemy is no longer present.', 'warning');
+        logs.logMessage('The selected enemy is no longer present.', 'warning');
         return { outcome: 'missing', lucky: isLucky };
       }
 
       const adjustment = isLucky ? -2 : 1;
       enemy.stamina = Math.max(0, enemy.stamina + adjustment);
       const enemyLabel = formatEnemyName(enemy);
-      logMessage(
+      logs.logMessage(
         isLucky
           ? `Lucky strike! ${enemyLabel} loses an additional 2 Stamina.`
           : `Unlucky! ${enemyLabel} regains 1 Stamina.`,
@@ -3063,7 +1936,7 @@
       );
 
       if (enemy.stamina === 0) {
-        logMessage(`${enemyLabel} is defeated.`, 'success');
+        logs.logMessage(`${enemyLabel} is defeated.`, 'success');
         removeEnemy(context.index);
       } else {
         renderEnemies();
@@ -3072,7 +1945,7 @@
       const adjustment = isLucky ? 1 : -1;
       player.stamina = clamp(player.stamina + adjustment, 0, player.maxStamina);
       syncPlayerInputs();
-      logMessage(
+      logs.logMessage(
         isLucky
           ? 'Lucky! You reduce the damage by gaining 1 Stamina.'
           : 'Unlucky! You lose an additional 1 Stamina.',
@@ -3106,10 +1979,10 @@
 
     const copyRoll = rollDice(2) + copied.skill;
     const targetRoll = rollDice(2) + target.skill;
-    logMessage(`${formatEnemyName(copied)} attacks ${formatEnemyName(target)}: ${copyRoll} vs ${targetRoll}.`, 'action');
+    logs.logMessage(`${formatEnemyName(copied)} attacks ${formatEnemyName(target)}: ${copyRoll} vs ${targetRoll}.`, 'action');
 
     if (copyRoll === targetRoll) {
-      logMessage('The copied creature trades feints with no damage dealt.', 'info');
+      logs.logMessage('The copied creature trades feints with no damage dealt.', 'info');
       return;
     }
 
@@ -3119,17 +1992,17 @@
 
     if (copyRoll > targetRoll) {
       target.stamina = Math.max(0, target.stamina - damage);
-      logMessage(`${formatEnemyName(target)} takes ${damage} damage from the copied creature.`, 'success');
+      logs.logMessage(`${formatEnemyName(target)} takes ${damage} damage from the copied creature.`, 'success');
       if (target.stamina === 0) {
-        logMessage(`${formatEnemyName(target)} is defeated by the copied creature.`, 'success');
+        logs.logMessage(`${formatEnemyName(target)} is defeated by the copied creature.`, 'success');
         removeEnemyById(targetId);
         return;
       }
     } else {
       copied.stamina = Math.max(0, copied.stamina - damage);
-      logMessage(`${formatEnemyName(copied)} takes ${damage} damage.`, 'danger');
+      logs.logMessage(`${formatEnemyName(copied)} takes ${damage} damage.`, 'danger');
       if (copied.stamina === 0) {
-        logMessage(`${formatEnemyName(copied)} is destroyed.`, 'warning');
+        logs.logMessage(`${formatEnemyName(copied)} is destroyed.`, 'warning');
         removeEnemyById(copyId);
         return;
       }
@@ -3177,10 +2050,10 @@
     const playerAttack = rollDice(2) + Math.max(0, player.skill + playerModifiers.skillBonus);
 
     const enemyLabel = formatEnemyName(enemy);
-    logMessage(`Combat vs ${enemyLabel}: Monster ${monsterAttack} vs Player ${playerAttack}.`, 'action');
+    logs.logMessage(`Combat vs ${enemyLabel}: Monster ${monsterAttack} vs Player ${playerAttack}.`, 'action');
 
     if (monsterAttack === playerAttack) {
-      logMessage('Standoff! No damage dealt.', 'info');
+      logs.logMessage('Standoff! No damage dealt.', 'info');
       return;
     }
 
@@ -3188,7 +2061,7 @@
     if (playerAttack > monsterAttack) {
       const damageToEnemy = calculateDamageToEnemy(enemy);
       enemy.stamina = Math.max(0, enemy.stamina - damageToEnemy);
-      logMessage(`You hit ${enemyLabel} for ${damageToEnemy} damage.`, 'success');
+      logs.logMessage(`You hit ${enemyLabel} for ${damageToEnemy} damage.`, 'success');
       showActionVisual('playerHitEnemy');
       defeated = enemy.stamina === 0;
 
@@ -3200,10 +2073,10 @@
         }
       }
     } else {
-      const damageToPlayer = calculateDamageToPlayer(enemy);
-      player.stamina = clamp(player.stamina - damageToPlayer, 0, player.maxStamina);
-      syncPlayerInputs();
-      logMessage(`${enemyLabel} hits you for ${damageToPlayer} damage.`, 'danger');
+    const damageToPlayer = calculateDamageToPlayer(enemy);
+    player.stamina = clamp(player.stamina - damageToPlayer, 0, player.maxStamina);
+    syncPlayerInputs();
+    logs.logMessage(`${enemyLabel} hits you for ${damageToPlayer} damage.`, 'danger');
 
       await showActionVisualAndWait('playerFailAttack');
 
@@ -3214,7 +2087,7 @@
 
       // Only trigger the combat defeat art once Luck adjustments settle on zero Stamina.
       if (player.stamina === 0) {
-        logMessage('You have been killed. Game Over.', 'danger');
+        logs.logMessage('You have been killed. Game Over.', 'danger');
         showActionVisual('loseCombat');
       }
     }
@@ -3222,7 +2095,7 @@
     const enemyRemovedByLuck = !enemies.includes(enemy);
 
     if (defeated) {
-      logMessage(`${enemyLabel} is defeated.`, 'success');
+      logs.logMessage(`${enemyLabel} is defeated.`, 'success');
       showActionVisual('defeatEnemy');
       if (enemies.includes(enemy)) {
         removeEnemy(index);
@@ -3247,16 +2120,16 @@
     let potionSubline = 'Potion restores your vigor.';
     if (player.potion === 'Potion of Skill') {
       player.skill = player.maxSkill;
-      logMessage('Potion of Skill used. Skill restored.', 'success');
+      logs.logMessage('Potion of Skill used. Skill restored.', 'success');
       potionSubline = 'Skill returns to its peak.';
     } else if (player.potion === 'Potion of Strength') {
       player.stamina = player.maxStamina;
-      logMessage('Potion of Strength used. Stamina restored.', 'success');
+      logs.logMessage('Potion of Strength used. Stamina restored.', 'success');
       potionSubline = 'Stamina surges to full.';
     } else if (player.potion === 'Potion of Fortune') {
       player.maxLuck += 1;
       player.luck = player.maxLuck;
-      logMessage('Potion of Fortune used. Luck increased and restored.', 'success');
+      logs.logMessage('Potion of Fortune used. Luck increased and restored.', 'success');
       initialStats.luck = player.maxLuck;
       updateInitialStatsDisplay();
       potionSubline = 'Luck rises and refills.';
@@ -3271,7 +2144,7 @@
     showPotionDialog((choice) => {
       player.potion = choice;
       player.potionUsed = false;
-      logMessage(`${player.potion} selected.`, 'info');
+      logs.logMessage(`${player.potion} selected.`, 'info');
       renderPotionStatus();
       if (onSelected) {
         onSelected(choice);
@@ -3280,7 +2153,7 @@
       if (onCancelled) {
         onCancelled();
       } else {
-        logMessage('Potion selection cancelled.', 'warning');
+        logs.logMessage('Potion selection cancelled.', 'warning');
       }
     });
   };
@@ -3312,6 +2185,7 @@
 
           preparedSpells = spellSelection || {};
           preparedSpellLimit = parseNumber(limit ?? spellLimit, spellLimit, 0, 999);
+          syncPreparedSpells();
           resetNotes();
           resetMapDrawing();
 
@@ -3320,13 +2194,14 @@
 
           enemies = [];
           nextEnemyId = 1;
+          syncEnemies();
           renderEnemies();
           decisionLogHistory.length = 0;
-          renderDecisionLog();
+          logs.renderDecisionLog();
           syncPlayerInputs();
-          renderLog();
+          logs.renderLog();
           const bookLabel = currentBook || 'Unknown Book';
-          logMessage(`New game started for ${bookLabel}. Roll results applied.`, 'success');
+          logs.logMessage(`New game started for ${bookLabel}. Roll results applied.`, 'success');
           renderPotionStatus();
           renderSpellsPanel();
           updateResourceVisibility();
@@ -3341,7 +2216,7 @@
           selectPotion(
             (choice) => finalizeNewGame(choice, spellSelection, limitValue),
             () => {
-              logMessage('New game cancelled before choosing a potion. Current adventure continues.', 'warning');
+              logs.logMessage('New game cancelled before choosing a potion. Current adventure continues.', 'warning');
             }
           );
         };
@@ -3356,7 +2231,7 @@
             limit: spellLimit,
             spells: spellsForBook,
             onConfirm: (selection, limitValue) => startPotionFlow(selection, limitValue),
-            onCancel: () => logMessage('New game cancelled before selecting spells. Current adventure continues.', 'warning')
+            onCancel: () => logs.logMessage('New game cancelled before selecting spells. Current adventure continues.', 'warning')
           });
         };
 
@@ -3371,14 +2246,14 @@
         startStatRolling();
       },
       () => {
-        logMessage('New game cancelled before selecting a book. Current adventure continues.', 'warning');
+        logs.logMessage('New game cancelled before selecting a book. Current adventure continues.', 'warning');
       }
     );
   };
 
   // Allow non-combat failures to showcase the dedicated defeat art without altering stats.
   const playGameOverVisual = () => {
-    logMessage('Game Over triggered outside combat.', 'danger');
+    logs.logMessage('Game Over triggered outside combat.', 'danger');
     showActionVisual('lose');
   };
 
@@ -3462,11 +2337,13 @@
   document.getElementById('generalRoll').addEventListener('click', showGeneralRollDialog);
   document.getElementById('saveGame').addEventListener('click', showSaveDialog);
   document.getElementById('loadGame').addEventListener('click', () => loadFileInput.click());
-  document.getElementById('openMap').addEventListener('click', showMapDialog);
+  document.getElementById('openMap').addEventListener('click', () => {
+    showMapDialog({ currentBook, logMessage });
+  });
   document.getElementById('newGame').addEventListener('click', newGame);
   document.getElementById('gameOver').addEventListener('click', playGameOverVisual);
   document.getElementById('usePotion').addEventListener('click', applyPotion);
-  loadFileInput.addEventListener('change', handleLoadFile);
+  handleLoadFile(applySaveData);
   document.addEventListener('keydown', handleGlobalHotkeys);
 
   document.getElementById('addEnemy').addEventListener('click', () => addEnemy());
@@ -3483,6 +2360,6 @@
   updateResourceVisibility();
   renderSpellsPanel();
   syncPlayerInputs();
-  renderLog();
-  renderDecisionLog();
+logs.renderLog();
+logs.renderDecisionLog();
 })();
