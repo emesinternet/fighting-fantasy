@@ -27,6 +27,7 @@
   } = window.ffApp.map;
   const { onClick, byId } = window.ffApp.dom;
   const logs = window.ffApp.logs;
+  const { logMessage } = logs;
   const { showSaveDialog, handleLoadFile } = window.ffApp.persistence;
   const spellsModule = window.ffApp.spells;
   const state = window.ffApp.state;
@@ -177,6 +178,8 @@
   const activeSpells = () => Array.isArray(getActiveBookRules().spells) ? getActiveBookRules().spells : [];
   const activeStatConfigs = () => ({ ...baseStatConfigs, ...(getActiveBookRules().extraStats || {}) });
   const activeSpellLimitStat = () => getActiveBookRules().spellLimitStat;
+  window.ffApp.getActiveSpells = activeSpells;
+  window.ffApp.getActiveSpellLimitStat = activeSpellLimitStat;
 
   const getNotesState = () => ({
     gold: notes.gold.value,
@@ -503,7 +506,7 @@
         return;
       }
 
-      addDecisionLogEntry(pageValue, decisionValue);
+      logs.addDecisionLogEntry(pageValue, decisionValue);
       close();
     };
 
@@ -1352,6 +1355,8 @@
     logs.logMessage(`Spell cast: ${spell.name}. ${spell.description}`, 'info');
   };
 
+  window.ffApp.applySpellEffect = applySpellEffect;
+
   const castSpell = async (spellKey) => {
     const spellsAvailable = activeSpells();
     const spell = spellsAvailable.find((entry) => entry.key === spellKey);
@@ -1572,6 +1577,8 @@
     renderPotionStatus();
     renderSpellsPanel();
   };
+
+  window.ffApp.castSpell = castSpell;
 
   // Keep enemy damage calculations and UI summaries in sync by routing everything through
   // a shared profile that applies modifiers as deltas to the Fighting Fantasy base damage.
@@ -1835,7 +1842,7 @@
 
       enemy.modifiers = updated;
       renderEnemies();
-      logMessage(`${formatEnemyName(enemy)} modifiers updated.`, 'info');
+      logs.logMessage(`${formatEnemyName(enemy)} modifiers updated.`, 'info');
       close();
     });
 
@@ -1921,7 +1928,7 @@
       const adjustment = isLucky ? -2 : 1;
       enemy.stamina = Math.max(0, enemy.stamina + adjustment);
       const enemyLabel = formatEnemyName(enemy);
-      logMessage(
+      logs.logMessage(
         isLucky
           ? `Lucky strike! ${enemyLabel} loses an additional 2 Stamina.`
           : `Unlucky! ${enemyLabel} regains 1 Stamina.`,
@@ -1929,7 +1936,7 @@
       );
 
       if (enemy.stamina === 0) {
-        logMessage(`${enemyLabel} is defeated.`, 'success');
+        logs.logMessage(`${enemyLabel} is defeated.`, 'success');
         removeEnemy(context.index);
       } else {
         renderEnemies();
@@ -2043,10 +2050,10 @@
     const playerAttack = rollDice(2) + Math.max(0, player.skill + playerModifiers.skillBonus);
 
     const enemyLabel = formatEnemyName(enemy);
-    logMessage(`Combat vs ${enemyLabel}: Monster ${monsterAttack} vs Player ${playerAttack}.`, 'action');
+    logs.logMessage(`Combat vs ${enemyLabel}: Monster ${monsterAttack} vs Player ${playerAttack}.`, 'action');
 
     if (monsterAttack === playerAttack) {
-      logMessage('Standoff! No damage dealt.', 'info');
+      logs.logMessage('Standoff! No damage dealt.', 'info');
       return;
     }
 
@@ -2054,7 +2061,7 @@
     if (playerAttack > monsterAttack) {
       const damageToEnemy = calculateDamageToEnemy(enemy);
       enemy.stamina = Math.max(0, enemy.stamina - damageToEnemy);
-      logMessage(`You hit ${enemyLabel} for ${damageToEnemy} damage.`, 'success');
+      logs.logMessage(`You hit ${enemyLabel} for ${damageToEnemy} damage.`, 'success');
       showActionVisual('playerHitEnemy');
       defeated = enemy.stamina === 0;
 
@@ -2066,10 +2073,10 @@
         }
       }
     } else {
-      const damageToPlayer = calculateDamageToPlayer(enemy);
-      player.stamina = clamp(player.stamina - damageToPlayer, 0, player.maxStamina);
-      syncPlayerInputs();
-      logs.logMessage(`${enemyLabel} hits you for ${damageToPlayer} damage.`, 'danger');
+    const damageToPlayer = calculateDamageToPlayer(enemy);
+    player.stamina = clamp(player.stamina - damageToPlayer, 0, player.maxStamina);
+    syncPlayerInputs();
+    logs.logMessage(`${enemyLabel} hits you for ${damageToPlayer} damage.`, 'danger');
 
       await showActionVisualAndWait('playerFailAttack');
 
@@ -2190,11 +2197,11 @@
           syncEnemies();
           renderEnemies();
           decisionLogHistory.length = 0;
-          renderDecisionLog();
+          logs.renderDecisionLog();
           syncPlayerInputs();
-          renderLog();
+          logs.renderLog();
           const bookLabel = currentBook || 'Unknown Book';
-          logMessage(`New game started for ${bookLabel}. Roll results applied.`, 'success');
+          logs.logMessage(`New game started for ${bookLabel}. Roll results applied.`, 'success');
           renderPotionStatus();
           renderSpellsPanel();
           updateResourceVisibility();
@@ -2209,7 +2216,7 @@
           selectPotion(
             (choice) => finalizeNewGame(choice, spellSelection, limitValue),
             () => {
-              logMessage('New game cancelled before choosing a potion. Current adventure continues.', 'warning');
+              logs.logMessage('New game cancelled before choosing a potion. Current adventure continues.', 'warning');
             }
           );
         };
@@ -2224,7 +2231,7 @@
             limit: spellLimit,
             spells: spellsForBook,
             onConfirm: (selection, limitValue) => startPotionFlow(selection, limitValue),
-            onCancel: () => logMessage('New game cancelled before selecting spells. Current adventure continues.', 'warning')
+            onCancel: () => logs.logMessage('New game cancelled before selecting spells. Current adventure continues.', 'warning')
           });
         };
 
@@ -2239,7 +2246,7 @@
         startStatRolling();
       },
       () => {
-        logMessage('New game cancelled before selecting a book. Current adventure continues.', 'warning');
+        logs.logMessage('New game cancelled before selecting a book. Current adventure continues.', 'warning');
       }
     );
   };
@@ -2336,7 +2343,7 @@
   document.getElementById('newGame').addEventListener('click', newGame);
   document.getElementById('gameOver').addEventListener('click', playGameOverVisual);
   document.getElementById('usePotion').addEventListener('click', applyPotion);
-  loadFileInput.addEventListener('change', handleLoadFile);
+  handleLoadFile(applySaveData);
   document.addEventListener('keydown', handleGlobalHotkeys);
 
   document.getElementById('addEnemy').addEventListener('click', () => addEnemy());
@@ -2353,6 +2360,6 @@
   updateResourceVisibility();
   renderSpellsPanel();
   syncPlayerInputs();
-  renderLog();
-  renderDecisionLog();
+logs.renderLog();
+logs.renderDecisionLog();
 })();
