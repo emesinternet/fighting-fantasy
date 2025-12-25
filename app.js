@@ -2297,7 +2297,6 @@
 
     if (key === 'm') {
       event.preventDefault();
-      // Pass the current book for sensible filenames and consistent logging.
       showMapDialog({ currentBook, logMessage });
       return;
     }
