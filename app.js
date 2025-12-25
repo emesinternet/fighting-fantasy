@@ -1146,7 +1146,7 @@
     save.textContent = 'Save';
     const download = document.createElement('button');
     download.className = 'btn btn-neutral';
-    download.textContent = 'Download PNG';
+    download.textContent = 'Download';
     actionGroup.appendChild(cancel);
     actionGroup.appendChild(download);
     actionGroup.appendChild(save);
