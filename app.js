@@ -12,13 +12,23 @@
   } = window.ffApp.utils;
   const {
     BOOK_OPTIONS,
-    SPELL_LIBRARY,
     BOOK_RULES,
     potionOptions,
     generalRollOptions,
-    actionVisuals,
     baseStatConfigs
   } = window.ffApp.constants;
+  const {
+    bindDefaultEnterAction,
+    createModal,
+    showActionVisual,
+    showActionVisualAndWait
+  } = window.ffApp.ui;
+  const {
+    getMapDrawing,
+    setMapDrawing,
+    resetMapDrawing,
+    showMapDialog
+  } = window.ffApp.map;
   const state = window.ffApp.state;
   const {
     player,
@@ -62,18 +72,6 @@
   const spellsTable = document.getElementById('spellsTable');
   const spellsRemaining = document.getElementById('spellsRemaining');
 
-  // Animation overlay elements for action highlights.
-  const animationOverlay = document.getElementById('action-overlay');
-  const animationImage = document.getElementById('action-image');
-  const animationText = document.getElementById('action-text');
-  const animationTimers = [];
-  const ANIMATION_ENTRY_DURATION_MS = 800;
-  const ANIMATION_HOLD_DURATION_MS = 2000;
-  const ANIMATION_FADE_DURATION_MS = 200;
-  const ANIMATION_TOTAL_DURATION_MS = ANIMATION_ENTRY_DURATION_MS
-    + ANIMATION_HOLD_DURATION_MS
-    + ANIMATION_FADE_DURATION_MS;
-
   const inputs = {
     skill: document.getElementById('skill'),
     stamina: document.getElementById('stamina'),
@@ -94,17 +92,6 @@
     treasure: document.getElementById('treasure'),
     equipment: document.getElementById('equipment')
   };
-
-  // Persist a single drawing snapshot (as a data URL) so saves and reloads can keep maps intact.
-  const getMapDrawing = () => state.mapDrawingDataUrl || '';
-  const setMapDrawing = (dataUrl) => {
-    state.mapDrawingDataUrl = dataUrl || '';
-  };
-  const MAP_CANVAS_WIDTH = 1600;
-  const MAP_CANVAS_HEIGHT = 1000;
-  const MAP_CANVAS_BACKGROUND = '#f3efe3';
-  const MAP_BRUSH_WIDTH = 4.5;
-  const MAP_ERASER_WIDTH = 24;
 
   // Keep note fields tidy with a shared reset helper for new games.
   const resetNotes = () => {
@@ -357,10 +344,6 @@
 
   const applyMapState = (savedMap = {}) => {
     setMapDrawing(typeof savedMap.image === 'string' ? savedMap.image : '');
-  };
-
-  const resetMapDrawing = () => {
-    setMapDrawing('');
   };
 
   const applyLogState = (savedLog = []) => {
@@ -780,254 +763,6 @@
     bindDefaultEnterAction(overlay, addButton, { allowTextareaSubmit: true });
   };
 
-  let mapModalOpen = false;
-
-  const showMapDialog = () => {
-    if (mapModalOpen) {
-      return;
-    }
-    mapModalOpen = true;
-    const { overlay, modal, close } = createModal(
-      'Map Sketchpad',
-      'Free draw a map or jot notes. Saving stores this canvas with your current adventure and future save files.',
-      {
-        slideFromBottom: true,
-        onClose: () => {
-          mapModalOpen = false;
-          hideCursor();
-        }
-      }
-    );
-
-    modal.classList.add('map-modal');
-    modal.classList.add('modal-wide');
-
-    const canvasWrapper = document.createElement('div');
-    canvasWrapper.className = 'map-canvas-wrapper';
-
-    const canvas = document.createElement('canvas');
-    canvas.className = 'map-canvas';
-    canvas.width = MAP_CANVAS_WIDTH;
-    canvas.height = MAP_CANVAS_HEIGHT;
-    canvasWrapper.appendChild(canvas);
-    const cursor = document.createElement('div');
-    cursor.className = 'map-cursor';
-    canvasWrapper.appendChild(cursor);
-    modal.appendChild(canvasWrapper);
-
-    const ctx = canvas.getContext('2d');
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-
-    const paintBackground = () => {
-      ctx.fillStyle = MAP_CANVAS_BACKGROUND;
-      ctx.fillRect(0, 0, MAP_CANVAS_WIDTH, MAP_CANVAS_HEIGHT);
-    };
-
-    // Keep previous drawings visible whenever the player reopens the map.
-    const hydrateExistingDrawing = () => new Promise((resolve) => {
-      paintBackground();
-      const existing = getMapDrawing();
-      if (!existing) {
-        resolve();
-        return;
-      }
-      const image = new Image();
-      image.onload = () => {
-        ctx.drawImage(image, 0, 0, MAP_CANVAS_WIDTH, MAP_CANVAS_HEIGHT);
-        resolve();
-      };
-      image.onerror = () => resolve();
-      image.src = existing;
-    });
-
-    hydrateExistingDrawing();
-
-    const colorOptions = [
-      { label: 'Ink', value: '#2d261f' },
-      { label: 'Umber', value: '#825d44' },
-      { label: 'Crimson', value: '#c55656' },
-      { label: 'Forest', value: '#4f8240' },
-      { label: 'Ocean', value: '#3f6f99' },
-      { label: 'Steel', value: '#6f7886' }
-    ];
-
-    let currentColor = colorOptions[0].value;
-    let erasing = false;
-    const swatches = [];
-
-    // Mirror the current stroke width and color with a lightweight cursor ring.
-    const getBrushWidth = () => (erasing ? MAP_ERASER_WIDTH : MAP_BRUSH_WIDTH);
-
-    const refreshCursorStyle = (rect) => {
-      const bounds = rect || canvas.getBoundingClientRect();
-      const scaleX = bounds.width / MAP_CANVAS_WIDTH;
-      const scaleY = bounds.height / MAP_CANVAS_HEIGHT;
-      const averageScale = (scaleX + scaleY) / 2;
-      const pixelSize = getBrushWidth() * averageScale;
-      cursor.style.width = `${pixelSize}px`;
-      cursor.style.height = `${pixelSize}px`;
-      cursor.style.borderColor = erasing ? MAP_CANVAS_BACKGROUND : currentColor;
-    };
-
-    const hideCursor = () => {
-      cursor.classList.remove('is-visible');
-    };
-
-    const updateCursorPosition = (event) => {
-      const rect = canvas.getBoundingClientRect();
-      cursor.style.left = `${event.clientX - rect.left}px`;
-      cursor.style.top = `${event.clientY - rect.top}px`;
-      refreshCursorStyle(rect);
-      cursor.classList.add('is-visible');
-    };
-
-    const setActiveSwatch = (swatch, colorValue, isEraser = false) => {
-      swatches.forEach((item) => item.classList.remove('is-active'));
-      if (swatch) {
-        swatch.classList.add('is-active');
-      }
-      currentColor = colorValue;
-      erasing = isEraser;
-      refreshCursorStyle();
-    };
-
-    const controls = document.createElement('div');
-    controls.className = 'map-controls';
-
-    const palette = document.createElement('div');
-    palette.className = 'map-palette';
-
-    colorOptions.forEach((option, index) => {
-      const swatch = document.createElement('button');
-      swatch.type = 'button';
-      swatch.className = 'map-swatch';
-      swatch.style.background = option.value;
-      swatch.title = `${option.label} ink`;
-      swatch.setAttribute('aria-label', `${option.label} ink`);
-      swatch.addEventListener('click', () => setActiveSwatch(swatch, option.value, false));
-      if (index === 0) {
-        setActiveSwatch(swatch, option.value);
-      }
-      swatches.push(swatch);
-      palette.appendChild(swatch);
-    });
-
-    const eraser = document.createElement('button');
-    eraser.type = 'button';
-    eraser.className = 'map-swatch';
-    eraser.title = 'Erase';
-    eraser.setAttribute('aria-label', 'Erase');
-    eraser.style.background = MAP_CANVAS_BACKGROUND;
-    eraser.addEventListener('click', () => setActiveSwatch(eraser, MAP_CANVAS_BACKGROUND, true));
-    palette.appendChild(eraser);
-    swatches.push(eraser);
-
-    controls.appendChild(palette);
-
-    const actionGroup = document.createElement('div');
-    actionGroup.className = 'map-actions';
-    const cancel = document.createElement('button');
-    cancel.className = 'btn btn-negative';
-    cancel.textContent = 'Cancel';
-    const save = document.createElement('button');
-    save.className = 'btn btn-positive';
-    save.textContent = 'Save';
-    const download = document.createElement('button');
-    download.className = 'btn btn-neutral';
-    download.textContent = 'Download';
-    actionGroup.appendChild(cancel);
-    actionGroup.appendChild(download);
-    actionGroup.appendChild(save);
-    controls.appendChild(actionGroup);
-    modal.appendChild(controls);
-
-    const getCanvasPoint = (event) => {
-      const rect = canvas.getBoundingClientRect();
-      return {
-        x: (event.clientX - rect.left) * (canvas.width / rect.width),
-        y: (event.clientY - rect.top) * (canvas.height / rect.height)
-      };
-    };
-
-    let drawing = false;
-
-    const startStroke = (event) => {
-      event.preventDefault();
-      drawing = true;
-      const { x, y } = getCanvasPoint(event);
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.strokeStyle = erasing ? MAP_CANVAS_BACKGROUND : currentColor;
-      ctx.lineWidth = getBrushWidth();
-      ctx.lineTo(x, y);
-      ctx.stroke();
-      updateCursorPosition(event);
-      if (typeof event.pointerId !== 'undefined') {
-        canvas.setPointerCapture(event.pointerId);
-      }
-    };
-
-    const continueStroke = (event) => {
-      updateCursorPosition(event);
-      if (!drawing) {
-        return;
-      }
-      event.preventDefault();
-      const { x, y } = getCanvasPoint(event);
-      ctx.lineTo(x, y);
-      ctx.strokeStyle = erasing ? MAP_CANVAS_BACKGROUND : currentColor;
-      ctx.lineWidth = getBrushWidth();
-      ctx.stroke();
-    };
-
-    const endStroke = () => {
-      if (!drawing) {
-        return;
-      }
-      drawing = false;
-      ctx.closePath();
-    };
-
-    canvas.addEventListener('pointerdown', startStroke);
-    canvas.addEventListener('pointermove', continueStroke);
-    canvas.addEventListener('pointerup', endStroke);
-    canvas.addEventListener('pointerenter', updateCursorPosition);
-    canvas.addEventListener('pointerleave', () => {
-      hideCursor();
-      endStroke();
-    });
-    canvas.addEventListener('pointercancel', () => {
-      hideCursor();
-      endStroke();
-    });
-
-    const persistMap = () => {
-      setMapDrawing(canvas.toDataURL('image/png'));
-      logMessage('Map saved to this adventure and future save files.', 'info');
-      close();
-    };
-
-    const downloadCanvas = () => {
-      const downloadUrl = canvas.toDataURL('image/png');
-      const bookSlug = currentBook
-        ? currentBook.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-        : '';
-      const filename = bookSlug ? `${bookSlug}-map.png` : 'map-sketch.png';
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    };
-
-    save.addEventListener('click', persistMap);
-    download.addEventListener('click', downloadCanvas);
-    cancel.addEventListener('click', close);
-    bindDefaultEnterAction(overlay, save);
-  };
-
   // Prompt the book choice up front so saves and logs can stay tied to the right title.
   const showBookDialog = (onSelected, onCancelled) => {
     const { overlay, modal, close } = createModal(
@@ -1155,260 +890,6 @@
       }
     };
     reader.readAsText(file);
-  };
-
-  // Handle the overlay animation lifecycle: fade/slide in image, then text, hold, fade everything out.
-  const clearAnimationTimers = () => {
-    while (animationTimers.length) {
-      clearTimeout(animationTimers.pop());
-    }
-  };
-
-  const resetAnimationClasses = () => {
-    animationImage.classList.remove('animate-in', 'animate-out');
-    animationText.classList.remove('animate-in', 'animate-out');
-  };
-
-  const fadeOutAnimation = () => {
-    animationImage.classList.remove('animate-in');
-    animationText.classList.remove('animate-in');
-    animationImage.classList.add('animate-out');
-    animationText.classList.add('animate-out');
-    animationOverlay.classList.remove('is-visible');
-    animationOverlay.setAttribute('aria-hidden', 'true');
-  };
-
-  // Allow the player to dismiss the overlay immediately without waiting for fades or timers.
-  const closeAnimationOverlayInstantly = () => {
-    clearAnimationTimers();
-    resetAnimationClasses();
-
-    const previousTransition = animationOverlay.style.transition;
-    animationOverlay.style.transition = 'none';
-    animationOverlay.classList.remove('is-visible');
-    animationOverlay.setAttribute('aria-hidden', 'true');
-    // Force style recalculation so the removal takes effect before restoring transitions.
-    void animationOverlay.offsetHeight; // eslint-disable-line no-unused-expressions
-    animationOverlay.style.transition = previousTransition;
-  };
-
-  const playActionAnimation = () => {
-    clearAnimationTimers();
-    resetAnimationClasses();
-
-    // Reset overlay visibility up front so new animations never overlap with a fading one.
-    animationOverlay.classList.remove('is-visible');
-    animationOverlay.setAttribute('aria-hidden', 'true');
-
-    // Restart keyframes reliably on consecutive plays.
-    void animationImage.offsetWidth; // eslint-disable-line no-unused-expressions
-    void animationText.offsetWidth; // eslint-disable-line no-unused-expressions
-
-    animationOverlay.classList.add('is-visible');
-    animationOverlay.setAttribute('aria-hidden', 'false');
-
-    animationTimers.push(setTimeout(() => {
-      animationImage.classList.add('animate-in');
-    }, 40));
-
-    animationTimers.push(setTimeout(() => {
-      animationText.classList.add('animate-in');
-    }, 220));
-
-    animationTimers.push(setTimeout(fadeOutAnimation, ANIMATION_ENTRY_DURATION_MS + ANIMATION_HOLD_DURATION_MS));
-    animationTimers.push(setTimeout(
-      resetAnimationClasses,
-      ANIMATION_ENTRY_DURATION_MS + ANIMATION_HOLD_DURATION_MS + ANIMATION_FADE_DURATION_MS
-    ));
-  };
-
-  const showActionVisual = (key, overrides = {}) => {
-    const visual = actionVisuals[key];
-    if (!visual) {
-      return;
-    }
-    const subline = overrides.subline || visual.subline;
-    animationImage.src = visual.src;
-    animationImage.alt = overrides.alt || visual.alt;
-    animationText.textContent = subline;
-    playActionAnimation();
-  };
-
-  // Give callers a simple way to wait for the overlay to finish before continuing a flow.
-  const showActionVisualAndWait = (key, overrides = {}) => new Promise((resolve) => {
-    showActionVisual(key, overrides);
-    setTimeout(resolve, ANIMATION_TOTAL_DURATION_MS);
-  });
-
-  animationOverlay.addEventListener('click', closeAnimationOverlayInstantly);
-
-  // Keep modal keyboard controls consistent: Enter activates the primary action unless Shift+Enter is used.
-  const bindDefaultEnterAction = (overlay, primaryButton, options = {}) => {
-    if (!overlay || !primaryButton) {
-      return;
-    }
-    const allowTextareaSubmit = Boolean(options.allowTextareaSubmit);
-    const handler = (event) => {
-      if (event.key !== 'Enter' || event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) {
-        return;
-      }
-      const activeElement = document.activeElement;
-      if (!allowTextareaSubmit && activeElement instanceof HTMLTextAreaElement) {
-        return;
-      }
-      if (primaryButton.disabled) {
-        return;
-      }
-      event.preventDefault();
-      primaryButton.click();
-    };
-    overlay.addEventListener('keydown', handler);
-  };
-
-  // Lightweight modal scaffolding to keep dialog creation tidy.
-  const createModal = (title, description, options = {}) => {
-    const overlay = document.createElement('div');
-    overlay.className = 'modal-overlay';
-    overlay.setAttribute('aria-hidden', 'true');
-    const slideFromBottom = Boolean(options.slideFromBottom);
-    const onClose = typeof options.onClose === 'function' ? options.onClose : null;
-    if (slideFromBottom) {
-      overlay.classList.add('modal-overlay-slide');
-    }
-
-    const modal = document.createElement('div');
-    modal.className = 'modal';
-    if (options.wide) {
-      modal.classList.add('modal-wide');
-    }
-    if (options.compact) {
-      modal.classList.add('modal-compact');
-    }
-    if (slideFromBottom) {
-      modal.classList.add('modal-slide');
-    }
-
-    const heading = document.createElement('h3');
-    heading.textContent = title;
-    modal.appendChild(heading);
-
-    if (description) {
-      const desc = document.createElement('p');
-      desc.textContent = description;
-      modal.appendChild(desc);
-    }
-
-    overlay.appendChild(modal);
-    document.body.appendChild(overlay);
-    overlay.setAttribute('aria-hidden', 'false');
-    requestAnimationFrame(() => {
-      if (slideFromBottom) {
-        modal.classList.add('is-visible');
-      }
-    });
-
-    // Keep a simple focus map that works across buttons, form controls, and intentional tabindex targets.
-    const focusableSelectors = [
-      'button',
-      '[href]',
-      'input',
-      'select',
-      'textarea',
-      '[tabindex]:not([tabindex="-1"])'
-    ];
-
-    const getFocusableElements = () => Array.from(
-      modal.querySelectorAll(focusableSelectors.join(','))
-    ).filter((el) => !el.hasAttribute('disabled') && el.tabIndex !== -1 && el.offsetParent !== null);
-
-    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-
-    const focusFirstInteractive = () => {
-      const focusable = getFocusableElements();
-      if (focusable.length > 0) {
-        focusable[0].focus();
-        return;
-      }
-      // Keep the modal itself keyboard reachable when it has no interactive children yet.
-      modal.tabIndex = -1;
-      modal.focus();
-    };
-
-    const trapFocus = (event) => {
-      if (event.key !== 'Tab') {
-        return;
-      }
-      const focusable = getFocusableElements();
-      if (focusable.length === 0) {
-        event.preventDefault();
-        modal.focus();
-        return;
-      }
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-
-    let hasClosed = false;
-    const finishClose = () => {
-      if (hasClosed) {
-        return;
-      }
-      hasClosed = true;
-      if (onClose) {
-        onClose();
-      }
-      overlay.remove();
-      if (previouslyFocused && document.body.contains(previouslyFocused)) {
-        previouslyFocused.focus();
-      }
-    };
-
-    const close = () => {
-      overlay.setAttribute('aria-hidden', 'true');
-      overlay.removeEventListener('keydown', handleKeydown);
-
-      if (!slideFromBottom) {
-        finishClose();
-        return;
-      }
-
-      modal.classList.remove('is-visible');
-      modal.classList.add('is-hiding');
-
-      const handleTransitionEnd = (event) => {
-        if (event.target !== modal || event.propertyName !== 'transform') {
-          return;
-        }
-        modal.removeEventListener('transitionend', handleTransitionEnd);
-        finishClose();
-      };
-
-      modal.addEventListener('transitionend', handleTransitionEnd);
-      setTimeout(() => {
-        modal.removeEventListener('transitionend', handleTransitionEnd);
-        finishClose();
-      }, 500);
-    };
-
-    const handleKeydown = (event) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        close();
-      }
-      trapFocus(event);
-    };
-
-    overlay.addEventListener('keydown', handleKeydown);
-    focusFirstInteractive();
-
-    return { overlay, modal, close };
   };
 
   // Prompt the player to decide on spending Luck after landing a hit.
@@ -1544,7 +1025,7 @@
 
     Object.entries(statSet).forEach(([key, config]) => {
       const card = document.createElement('div');
-      card.className = 'option-card';
+      card.className = 'option-card spell-card';
 
       const title = document.createElement('h4');
       title.textContent = config.label;
@@ -1971,6 +1452,7 @@
       card.appendChild(description);
 
       if (option.content) {
+        option.content.classList.add('card-control');
         card.appendChild(option.content);
       }
 
@@ -3124,7 +2606,9 @@
   document.getElementById('generalRoll').addEventListener('click', showGeneralRollDialog);
   document.getElementById('saveGame').addEventListener('click', showSaveDialog);
   document.getElementById('loadGame').addEventListener('click', () => loadFileInput.click());
-  document.getElementById('openMap').addEventListener('click', showMapDialog);
+  document.getElementById('openMap').addEventListener('click', () => {
+    showMapDialog({ currentBook, logMessage });
+  });
   document.getElementById('newGame').addEventListener('click', newGame);
   document.getElementById('gameOver').addEventListener('click', playGameOverVisual);
   document.getElementById('usePotion').addEventListener('click', applyPotion);

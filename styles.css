@@ -361,6 +361,13 @@ button.spell-row:hover:enabled {
   height: 100%;
 }
 
+.option-card > select,
+.option-card > textarea,
+.option-card > input[type='number'],
+.option-card > .card-control {
+  margin-bottom: 8px;
+}
+
 .enemy-copy {
   background: rgba(255, 207, 111, 0.14);
   border-color: rgba(255, 207, 111, 0.5);
@@ -1085,6 +1092,18 @@ input.inline-number {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+
+.spell-card.option-card {
+  gap: 6px;
+}
+
+.spell-card h4 {
+  margin: 0;
+}
+
+.spell-card p {
+  margin: 2px 0 6px;
 }
 
 .spell-input {
