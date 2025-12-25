@@ -38,3 +38,8 @@ Single-page web sheet for Fighting Fantasy gamebooks. Track player stats, manage
 - **F5:** Save game.
 - **F9:** Load game.
 - **Enter:** Activate Save/Apply/Confirm buttons in dialogs (where available); Shift+Enter continues to add a newline in decision text fields.
+
+## Code structure
+- `js/utils.js` holds shared helpers for dice rolls, clamping, formatting, and rendering log entries.
+- `js/constants.js` contains static data such as book rules, spell definitions, and UI art references.
+- `js/state.js` initializes the shared state container so the main `app.js` script can focus on UI flows and gameplay logic.

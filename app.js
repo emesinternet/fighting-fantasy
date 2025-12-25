@@ -1,166 +1,55 @@
 (() => {
-'use strict';
+  'use strict';
 
-// Core player state is tracked separately from the inputs so we can enforce maxima and potion effects.
-  const player = {
-    skill: 0,
-    stamina: 0,
-    luck: 0,
-    magic: 0,
-    maxSkill: 0,
-    maxStamina: 0,
-    maxLuck: 0,
-    maxMagic: 0,
-    meals: 10,
-    potion: null,
-    potionUsed: false
-  };
+  const {
+    rollDice,
+    clamp,
+    parseNumber,
+    formatFilenameTimestamp,
+    formatBookForFilename,
+    renderLogList,
+    logToneIcons
+  } = window.ffApp.utils;
+  const {
+    BOOK_OPTIONS,
+    SPELL_LIBRARY,
+    BOOK_RULES,
+    potionOptions,
+    generalRollOptions,
+    actionVisuals,
+    baseStatConfigs
+  } = window.ffApp.constants;
+  const state = window.ffApp.state;
+  const {
+    player,
+    playerModifiers,
+    initialStats,
+    logHistory,
+    decisionLogHistory
+  } = state;
 
-  // Light-weight knobs for tailoring how the player trades blows in combat.
-  const playerModifiers = {
-    damageDone: 0,
-    damageReceived: 0,
-    skillBonus: 0
-  };
-
-  // Track the unmodifiable starting maxima so we can surface them alongside the inputs.
-  const initialStats = {
-    skill: 0,
-    stamina: 0,
-    luck: 0,
-    magic: 0
-  };
-
-  const BOOK_OPTIONS = [
-    'Appointment with F.E.A.R.',
-    'Citadel of Chaos',
-    'City of Thieves',
-    'Creature of Havoc',
-    'Deathtrap Dungeon',
-    'Forest of Doom',
-    'House of Hell',
-    'Island of the Lizard King',
-    'Port of Peril',
-    'Warlock of Firetop Mountain (The)',
-  ];
-
-  let currentBook = '';
-
-  // Catalog spells once so book rules can opt into them without duplicating definitions.
- const SPELL_LIBRARY = {
-  creatureCopy: {
-    key: 'creatureCopy',
-    name: 'Creature Copy',
-    description: 'Copy an enemy, matching their Stamina and Stamina.',
-    effect: 'creatureCopy'
-  },
-  esp: {
-    key: 'esp',
-    name: 'E.S.P.',
-    description: 'Psychic mind-control. May provide misleading information.',
-    effect: 'log'
-  },
-  fire: {
-    key: 'fire',
-    name: 'Fire',
-    description: 'All enemies are afraid of fire.',
-    effect: 'log'
-  },
-  foolsGold: {
-    key: 'foolsGold',
-    name: "Fool's Gold",
-    description: 'Temporarily turn ordinary rocks into gold.',
-    effect: 'log'
-  },
-  illusion: {
-    key: 'illusion',
-    name: 'Illusion',
-    description: 'Convincing illusion broken by interaction. Best against intelligent creatures.',
-    effect: 'log'
-  },
-  levitation: {
-    key: 'levitation',
-    name: 'Levitation',
-    description: 'Cast on objects, enemies, or yourself. Controlled while airborne.',
-    effect: 'log'
-  },
-  luck: {
-    key: 'luck',
-    name: 'Luck',
-    description: 'Restore Luck by half of its initial value, up to the initial amount.',
-    effect: 'restoreLuck'
-  },
-  shielding: {
-    key: 'shielding',
-    name: 'Shielding',
-    description: 'Invisible shield that prevents touch. Ineffective against magic.',
-    effect: 'log'
-  },
-  stamina: {
-    key: 'stamina',
-    name: 'Stamina',
-    description: 'Restore Stamina by half of its initial value, up to the initial amount.',
-    effect: 'restoreStamina'
-  },
-  strength: {
-    key: 'strength',
-    name: 'Strength',
-    description: 'Greatly increases strength, which may be hard to control.',
-    effect: 'log'
-  },
-  weakness: {
-    key: 'weakness',
-    name: 'Weakness',
-    description: 'Makes strong enemies weak, but may not affect all foes.',
-    effect: 'log'
-  }
-};
-
-
-  // Keep book-specific toggles modular so future titles can add custom stats or rules.
-  const BOOK_RULES = {
-    'Citadel of Chaos': {
-      supportsPotions: false,
-      supportsMeals: false,
-      extraStats: {
-        magic: {
-          label: 'Magic',
-          roll: () => {
-            const dice = rollDice(2);
-            const total = dice + 6;
-            return { total, detail: `${dice} + 6 = ${total}` };
-          },
-          helper: 'Roll 2D6 + 6'
-        }
-      },
-      spells: [
-        SPELL_LIBRARY.creatureCopy,
-        SPELL_LIBRARY.esp,
-        SPELL_LIBRARY.fire,
-        SPELL_LIBRARY.foolsGold,
-        SPELL_LIBRARY.illusion,
-        SPELL_LIBRARY.levitation,
-        SPELL_LIBRARY.luck,
-        SPELL_LIBRARY.shielding,
-        SPELL_LIBRARY.stamina,
-        SPELL_LIBRARY.strength,
-        SPELL_LIBRARY.weakness
-      ],
-      spellLimitStat: 'magic'
-    }
-  };
-
-  let enemies = [];
   // Preserve stable enemy identifiers so names do not shift when the list changes.
-  let nextEnemyId = 1;
-  let preparedSpells = {};
-  let preparedSpellLimit = 0;
+  let enemies = state.enemies;
+  let nextEnemyId = state.nextEnemyId;
+  let preparedSpells = state.preparedSpells;
+  let preparedSpellLimit = state.preparedSpellLimit;
+  let currentBook = state.currentBook || '';
+  // Keep state mutations in sync with the shared container used across dialogs.
+  const syncEnemies = () => {
+    state.enemies = enemies;
+    state.nextEnemyId = nextEnemyId;
+  };
+  const syncPreparedSpells = () => {
+    state.preparedSpells = preparedSpells;
+    state.preparedSpellLimit = preparedSpellLimit;
+  };
+  const syncCurrentBook = () => {
+    state.currentBook = currentBook;
+  };
 
   const logEl = document.getElementById('log');
-  const logHistory = [];
   const LOG_HISTORY_LIMIT = 1000;
   const decisionLogEl = document.getElementById('decisionLog');
-  const decisionLogHistory = [];
   const DECISION_LOG_HISTORY_LIMIT = 1000;
   const loadFileInput = document.getElementById('loadFileInput');
   const potionStatus = document.getElementById('potionStatus');
@@ -207,7 +96,10 @@
   };
 
   // Persist a single drawing snapshot (as a data URL) so saves and reloads can keep maps intact.
-  let mapDrawingDataUrl = '';
+  const getMapDrawing = () => state.mapDrawingDataUrl || '';
+  const setMapDrawing = (dataUrl) => {
+    state.mapDrawingDataUrl = dataUrl || '';
+  };
   const MAP_CANVAS_WIDTH = 1600;
   const MAP_CANVAS_HEIGHT = 1000;
   const MAP_CANVAS_BACKGROUND = '#f3efe3';
@@ -219,29 +111,6 @@
     Object.values(notes).forEach((field) => {
       field.value = '';
     });
-  };
-
-  // Utility helpers --------------------------------------------------------
-  const rollDice = (count) => Array.from({ length: count }, () => Math.floor(Math.random() * 6) + 1)
-    .reduce((sum, value) => sum + value, 0);
-
-  // General-purpose dice helpers so future rolls can cover non-standard die sizes.
-  const rollDieWithSides = (sides) => Math.floor(Math.random() * sides) + 1;
-  const rollCustomDice = (count, sides) => {
-    const values = Array.from({ length: count }, () => rollDieWithSides(sides));
-    const total = values.reduce((sum, value) => sum + value, 0);
-    return { total, values };
-  };
-
-  const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
-
-  // Keep numeric parsing consistent when restoring a save file or clamping manual input.
-  const parseNumber = (value, fallback = 0, min = 0, max = 999) => {
-    const parsed = parseInt(value, 10);
-    if (Number.isFinite(parsed)) {
-      return clamp(parsed, min, max);
-    }
-    return fallback;
   };
 
   // Standard Fighting Fantasy combat deals 2 Stamina damage per successful hit.
@@ -294,76 +163,6 @@
     return 'Enemy';
   };
   const formatEnemyOptionLabel = (enemy) => `${formatEnemyName(enemy)} (Skill ${enemy.skill || 0}, Stamina ${enemy.stamina || 0})`;
-
-  // Format log entries with safe markup and lightweight emphasis to make combat updates easy to scan.
-  const escapeHtml = (text) => text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-
-  const emphasizeLogTokens = (message) => {
-    let safe = escapeHtml(message);
-    safe = safe.replace(/\b(\d+)\b/g, '<span class="log-number">$1</span>');
-    safe = safe.replace(/\b(Lucky!?|Unlucky!?|Skill|Stamina|Luck|Spell|damage|defeated|restored|increased|escape|escaped|potion)\b/gi,
-      '<span class="log-key">$1</span>');
-    return safe;
-  };
-
-  // Keep the combat log readable with tone-specific icons and colors.
-  const logToneIcons = {
-    info: '📜',
-    action: '⚔️',
-    success: '✨',
-    warning: '⚠️',
-    danger: '💀'
-  };
-
-  // Reusable renderer so adventure and decision logs stay consistent.
-  const renderLogList = ({
-    container,
-    entries,
-    getIcon,
-    formatMessage,
-    showTimestamp = true,
-    renderActions
-  }) => {
-    container.innerHTML = '';
-
-    entries.forEach((entry, index) => {
-      const row = document.createElement('div');
-      row.className = 'log-entry';
-      row.dataset.tone = entry.tone;
-
-      if (showTimestamp) {
-        const timestamp = document.createElement('span');
-        timestamp.className = 'log-timestamp';
-        const parsedDate = entry.timestamp ? new Date(entry.timestamp) : new Date();
-        timestamp.textContent = `[${parsedDate.toLocaleTimeString()}]`;
-        row.appendChild(timestamp);
-      }
-
-      const icon = document.createElement('span');
-      icon.className = 'log-icon';
-      const chosenIcon = getIcon ? getIcon(entry) : null;
-      icon.textContent = chosenIcon || logToneIcons[entry.tone] || logToneIcons.info;
-
-      const body = document.createElement('span');
-      body.className = 'log-body';
-      const content = formatMessage ? formatMessage(entry) : entry.message;
-      body.innerHTML = emphasizeLogTokens(content || '');
-
-      row.appendChild(icon);
-      row.appendChild(body);
-      if (renderActions) {
-        const actions = renderActions(entry, index);
-        if (actions) {
-          row.appendChild(actions);
-        }
-      }
-      container.appendChild(row);
-    });
-  };
 
   const renderLog = () => {
     renderLogList({
@@ -525,6 +324,7 @@
 
   const setCurrentBook = (bookName) => {
     currentBook = bookName || '';
+    syncCurrentBook();
   };
 
   const renderCurrentBook = () => {
@@ -552,15 +352,15 @@
   };
 
   const getMapState = () => ({
-    image: mapDrawingDataUrl || null
+    image: getMapDrawing() || null
   });
 
   const applyMapState = (savedMap = {}) => {
-    mapDrawingDataUrl = typeof savedMap.image === 'string' ? savedMap.image : '';
+    setMapDrawing(typeof savedMap.image === 'string' ? savedMap.image : '');
   };
 
   const resetMapDrawing = () => {
-    mapDrawingDataUrl = '';
+    setMapDrawing('');
   };
 
   const applyLogState = (savedLog = []) => {
@@ -683,6 +483,7 @@
   const resetSpells = () => {
     preparedSpells = {};
     preparedSpellLimit = 0;
+    syncPreparedSpells();
     renderSpellsPanel();
   };
 
@@ -698,6 +499,7 @@
         }
       });
     }
+    syncPreparedSpells();
     renderSpellsPanel();
   };
 
@@ -719,6 +521,7 @@
       onConfirm: (selection, limitValue) => {
         preparedSpells = { ...selection };
         preparedSpellLimit = Math.max(0, limitValue ?? usableLimit);
+        syncPreparedSpells();
         renderSpellsPanel();
         logMessage('Prepared spells updated.', 'info');
       },
@@ -754,6 +557,7 @@
 
     enemies = restored;
     nextEnemyId = Math.max(maxId + 1, nextEnemyId);
+    syncEnemies();
     renderEnemies();
   };
 
@@ -833,22 +637,6 @@
       limit: preparedSpellLimit
     }
   });
-
-  // Produce a filesystem-safe timestamp that is still easy to read in save filenames.
-  const formatFilenameTimestamp = () => {
-    const now = new Date();
-    const pad = (value) => String(value).padStart(2, '0');
-    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}`;
-  };
-
-  // Sanitize book names so the chosen title can safely prefix downloaded saves.
-  const formatBookForFilename = (bookName) => {
-    if (!bookName) {
-      return 'book-unknown';
-    }
-    const normalized = bookName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-    return normalized || 'book-unknown';
-  };
 
   const downloadSave = (payload, pageNumberLabel) => {
     const json = JSON.stringify(payload, null, 2);
@@ -1039,7 +827,8 @@
     // Keep previous drawings visible whenever the player reopens the map.
     const hydrateExistingDrawing = () => new Promise((resolve) => {
       paintBackground();
-      if (!mapDrawingDataUrl) {
+      const existing = getMapDrawing();
+      if (!existing) {
         resolve();
         return;
       }
@@ -1049,7 +838,7 @@
         resolve();
       };
       image.onerror = () => resolve();
-      image.src = mapDrawingDataUrl;
+      image.src = existing;
     });
 
     hydrateExistingDrawing();
@@ -1214,7 +1003,7 @@
     });
 
     const persistMap = () => {
-      mapDrawingDataUrl = canvas.toDataURL('image/png');
+      setMapDrawing(canvas.toDataURL('image/png'));
       logMessage('Map saved to this adventure and future save files.', 'info');
       close();
     };
@@ -1431,90 +1220,6 @@
       resetAnimationClasses,
       ANIMATION_ENTRY_DURATION_MS + ANIMATION_HOLD_DURATION_MS + ANIMATION_FADE_DURATION_MS
     ));
-  };
-
-  // Map game moments to inline action art so the overlay always reinforces the latest move.
-  const actionVisuals = {
-    newGame: {
-      src: 'img/player-new-game.png',
-      alt: 'An adventurer prepares for a fresh quest',
-      subline: 'A new adventure begins.'
-    },
-    eatMeal: {
-      src: 'img/player-eat-meal.png',
-      alt: 'The hero takes time to eat and recover',
-      subline: 'You regain strength from a meal.'
-    },
-    drinkPotion: {
-      src: 'img/player-drink-potion.png',
-      alt: 'The hero drinks a potion',
-      subline: 'Potion power surges through you.'
-    },
-    castSpell: {
-      src: 'img/player-casts-spell.png',
-      alt: 'The hero channels arcane energy',
-      subline: 'You unleash a prepared spell.'
-    },
-    escape: {
-      src: 'img/player-escape-battle.png',
-      alt: 'The hero slips away from battle',
-      subline: 'You escape, lose 2 Stamina.'
-    },
-    blockEnemy: {
-      src: 'img/player-block-enemy.png',
-      alt: 'The hero blocks an enemy strike',
-      subline: 'Lucky block, restore 1 stamina'
-    },
-    enemyHitYou: {
-      src: 'img/player-fail-block-enemy.png',
-      alt: 'The hero is struck by an enemy',
-      subline: 'Unlocky block, lose 1 stamina.'
-    },
-    playerHitEnemy: {
-      src: 'img/player-hit-enemy.png',
-      alt: 'The hero lands a hit on an enemy',
-      subline: 'Your strike lands!'
-    },
-    playerMissEnemy: {
-      src: 'img/player-miss-enemy.png',
-      alt: 'The hero misses an enemy attack',
-      subline: 'Your strike misses'
-    },
-    playerFailAttack: {
-      src: 'img/player-fail-attack.png',
-      alt: 'The hero stumbles after a failed attack',
-      subline: 'Your swing leaves you wide open.'
-    },
-    defeatEnemy: {
-      src: 'img/player-defeat-enemy.png',
-      alt: 'The hero fells an enemy',
-      subline: 'Another foe is vanquished.'
-    },
-    loseCombat: {
-      src: 'img/player-lose-combat.png',
-      alt: 'The hero reels from combat',
-      subline: 'You have been killed. Game Over.'
-    },
-    lose: {
-      src: 'img/player-lose.png',
-      alt: 'The hero collapses from defeat',
-      subline: 'Game Over.'
-    },
-    win: {
-      src: 'img/player-win.png',
-      alt: 'The hero celebrates victory',
-      subline: 'You completed the adventure!'
-    },
-    lucky: {
-      src: 'img/player-lucky-general.png',
-      alt: 'The hero is blessed by luck',
-      subline: 'Luck smiles upon you.'
-    },
-    unlucky: {
-      src: 'img/player-unlucky-general.png',
-      alt: 'The hero suffers an unlucky turn',
-      subline: 'Unlucky.'
-    }
   };
 
   const showActionVisual = (key, overrides = {}) => {
@@ -1807,36 +1512,6 @@
     usePotionButton.disabled = player.potionUsed;
   };
 
-  const baseStatConfigs = {
-    skill: {
-      label: 'Skill',
-      roll: () => {
-        const dice = rollDice(1);
-        const total = dice + 6;
-        return { total, detail: `${dice} + 6 = ${total}` };
-      },
-      helper: 'Roll 1D6 + 6'
-    },
-    stamina: {
-      label: 'Stamina',
-      roll: () => {
-        const dice = rollDice(2);
-        const total = dice + 12;
-        return { total, detail: `${dice} + 12 = ${total}` };
-      },
-      helper: 'Roll 2D6 + 12'
-    },
-    luck: {
-      label: 'Luck',
-      roll: () => {
-        const dice = rollDice(1);
-        const total = dice + 6;
-        return { total, detail: `${dice} + 6 = ${total}` };
-      },
-      helper: 'Roll 1D6 + 6'
-    }
-  };
-
   // Allow the player to roll each stat multiple times before accepting the spread.
   const showStatRollDialog = (statSet, onComplete) => {
     const hasMagic = Boolean(statSet.magic);
@@ -2097,12 +1772,6 @@
     bindDefaultEnterAction(overlay, confirmButton);
   };
 
-  const potionOptions = [
-    { name: 'Potion of Skill', description: 'Restores Skill to full.' },
-    { name: 'Potion of Strength', description: 'Restores Stamina to full.' },
-    { name: 'Potion of Fortune', description: 'Restores Luck to full and increases your maximum by 1.' }
-  ];
-
   const showPotionDialog = (onSelect, onCancel) => {
     const { overlay, modal, close } = createModal('Choose Your Potion', 'Pick one potion to bring on your adventure.');
     const grid = document.createElement('div');
@@ -2166,15 +1835,6 @@
     modal.appendChild(actions);
     bindDefaultEnterAction(overlay, confirmButton);
   };
-
-  // General-purpose dice roller for ad-hoc checks outside of combat or Luck.
-  const generalRollOptions = [
-    { value: '1d6', label: '1D6', roll: () => rollCustomDice(1, 6) },
-    { value: '1d4', label: '1D4', roll: () => rollCustomDice(1, 4) },
-    { value: '1d2', label: '1D2', roll: () => rollCustomDice(1, 2) },
-    { value: '2d6', label: '2D6', roll: () => rollCustomDice(2, 6) },
-    { value: 'percent', label: 'Percent Die', roll: () => rollCustomDice(1, 100) }
-  ];
 
   const logGeneralRollResult = (label, rollResult) => {
     const detail = rollResult.values.length > 1
@@ -3312,6 +2972,7 @@
 
           preparedSpells = spellSelection || {};
           preparedSpellLimit = parseNumber(limit ?? spellLimit, spellLimit, 0, 999);
+          syncPreparedSpells();
           resetNotes();
           resetMapDrawing();
 
@@ -3320,6 +2981,7 @@
 
           enemies = [];
           nextEnemyId = 1;
+          syncEnemies();
           renderEnemies();
           decisionLogHistory.length = 0;
           renderDecisionLog();
