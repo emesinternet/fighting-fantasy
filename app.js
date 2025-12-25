@@ -2297,7 +2297,7 @@
 
     if (key === 'm') {
       event.preventDefault();
-      showMapDialog();
+      showMapDialog({ currentBook, logMessage });
       return;
     }
 
