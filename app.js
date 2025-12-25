@@ -211,6 +211,8 @@
   const MAP_CANVAS_WIDTH = 1600;
   const MAP_CANVAS_HEIGHT = 1000;
   const MAP_CANVAS_BACKGROUND = '#f3efe3';
+  const MAP_BRUSH_WIDTH = 4.5;
+  const MAP_ERASER_WIDTH = 24;
 
   // Keep note fields tidy with a shared reset helper for new games.
   const resetNotes = () => {
@@ -422,7 +424,7 @@
     pageInput.id = 'decision-edit-page-number';
     pageInput.type = 'number';
     pageInput.min = '1';
-    pageInput.placeholder = 'e.g. 120';
+    pageInput.placeholder = '120';
     pageInput.value = entry.pageNumber || '';
     pageField.appendChild(pageLabel);
     pageField.appendChild(pageInput);
@@ -434,7 +436,7 @@
     decisionLabel.htmlFor = 'decision-edit-text';
     const decisionInput = document.createElement('textarea');
     decisionInput.id = 'decision-edit-text';
-    decisionInput.placeholder = 'e.g. Took the west tunnel';
+    decisionInput.placeholder = 'Took the west tunnel';
     decisionInput.value = entry.decision || entry.message || '';
     decisionField.appendChild(decisionLabel);
     decisionField.appendChild(decisionInput);
@@ -473,12 +475,7 @@
 
     cancel.addEventListener('click', close);
     save.addEventListener('click', attemptSave);
-    overlay.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' && !event.shiftKey) {
-        event.preventDefault();
-        attemptSave();
-      }
-    });
+    bindDefaultEnterAction(overlay, save, { allowTextareaSubmit: true });
 
     actions.appendChild(cancel);
     actions.appendChild(save);
@@ -889,7 +886,7 @@
     pageInput.id = 'save-page-number';
     pageInput.type = 'number';
     pageInput.min = '1';
-    pageInput.placeholder = 'e.g. 237';
+    pageInput.placeholder = '237';
 
     field.appendChild(label);
     field.appendChild(pageInput);
@@ -918,6 +915,7 @@
       logMessage(`Game saved${pageValue ? ` on Page ${pageValue}` : ''}.`, 'success');
       close();
     });
+    bindDefaultEnterAction(overlay, saveButton);
   };
 
   const showDecisionDialog = () => {
@@ -939,7 +937,7 @@
     pageInput.id = 'decision-page-number';
     pageInput.type = 'number';
     pageInput.min = '1';
-    pageInput.placeholder = 'e.g. 120';
+    pageInput.placeholder = '120';
     pageField.appendChild(pageLabel);
     pageField.appendChild(pageInput);
 
@@ -950,7 +948,7 @@
     decisionLabel.htmlFor = 'decision-text';
     const decisionInput = document.createElement('textarea');
     decisionInput.id = 'decision-text';
-    decisionInput.placeholder = 'e.g. Took the west tunnel';
+    decisionInput.placeholder = 'Took the west tunnel';
     decisionField.appendChild(decisionLabel);
     decisionField.appendChild(decisionInput);
 
@@ -991,20 +989,26 @@
     };
 
     addButton.addEventListener('click', attemptSave);
-    overlay.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' && !event.shiftKey) {
-        // Let Shift+Enter preserve new lines in the textarea while keeping a quick submit path.
-        event.preventDefault();
-        attemptSave();
-      }
-    });
+    bindDefaultEnterAction(overlay, addButton, { allowTextareaSubmit: true });
   };
 
+  let mapModalOpen = false;
+
   const showMapDialog = () => {
-    const { modal, close } = createModal(
+    if (mapModalOpen) {
+      return;
+    }
+    mapModalOpen = true;
+    const { overlay, modal, close } = createModal(
       'Map Sketchpad',
       'Free draw a map or jot notes. Saving stores this canvas with your current adventure and future save files.',
-      { slideFromBottom: true }
+      {
+        slideFromBottom: true,
+        onClose: () => {
+          mapModalOpen = false;
+          hideCursor();
+        }
+      }
     );
 
     modal.classList.add('map-modal');
@@ -1018,6 +1022,9 @@
     canvas.width = MAP_CANVAS_WIDTH;
     canvas.height = MAP_CANVAS_HEIGHT;
     canvasWrapper.appendChild(canvas);
+    const cursor = document.createElement('div');
+    cursor.className = 'map-cursor';
+    canvasWrapper.appendChild(cursor);
     modal.appendChild(canvasWrapper);
 
     const ctx = canvas.getContext('2d');
@@ -1048,17 +1055,43 @@
     hydrateExistingDrawing();
 
     const colorOptions = [
-      { label: 'Ink', value: '#1f1b16' },
-      { label: 'Umber', value: '#6d4b35' },
-      { label: 'Crimson', value: '#b33a3a' },
-      { label: 'Forest', value: '#3f6b2f' },
-      { label: 'Ocean', value: '#2f597f' },
-      { label: 'Steel', value: '#59616c' }
+      { label: 'Ink', value: '#2d261f' },
+      { label: 'Umber', value: '#825d44' },
+      { label: 'Crimson', value: '#c55656' },
+      { label: 'Forest', value: '#4f8240' },
+      { label: 'Ocean', value: '#3f6f99' },
+      { label: 'Steel', value: '#6f7886' }
     ];
 
     let currentColor = colorOptions[0].value;
     let erasing = false;
     const swatches = [];
+
+    // Mirror the current stroke width and color with a lightweight cursor ring.
+    const getBrushWidth = () => (erasing ? MAP_ERASER_WIDTH : MAP_BRUSH_WIDTH);
+
+    const refreshCursorStyle = (rect) => {
+      const bounds = rect || canvas.getBoundingClientRect();
+      const scaleX = bounds.width / MAP_CANVAS_WIDTH;
+      const scaleY = bounds.height / MAP_CANVAS_HEIGHT;
+      const averageScale = (scaleX + scaleY) / 2;
+      const pixelSize = getBrushWidth() * averageScale;
+      cursor.style.width = `${pixelSize}px`;
+      cursor.style.height = `${pixelSize}px`;
+      cursor.style.borderColor = erasing ? MAP_CANVAS_BACKGROUND : currentColor;
+    };
+
+    const hideCursor = () => {
+      cursor.classList.remove('is-visible');
+    };
+
+    const updateCursorPosition = (event) => {
+      const rect = canvas.getBoundingClientRect();
+      cursor.style.left = `${event.clientX - rect.left}px`;
+      cursor.style.top = `${event.clientY - rect.top}px`;
+      refreshCursorStyle(rect);
+      cursor.classList.add('is-visible');
+    };
 
     const setActiveSwatch = (swatch, colorValue, isEraser = false) => {
       swatches.forEach((item) => item.classList.remove('is-active'));
@@ -1067,6 +1100,7 @@
       }
       currentColor = colorValue;
       erasing = isEraser;
+      refreshCursorStyle();
     };
 
     const controls = document.createElement('div');
@@ -1110,8 +1144,12 @@
     const save = document.createElement('button');
     save.className = 'btn btn-positive';
     save.textContent = 'Save';
-    actionGroup.appendChild(save);
+    const download = document.createElement('button');
+    download.className = 'btn btn-neutral';
+    download.textContent = 'Download';
     actionGroup.appendChild(cancel);
+    actionGroup.appendChild(download);
+    actionGroup.appendChild(save);
     controls.appendChild(actionGroup);
     modal.appendChild(controls);
 
@@ -1132,15 +1170,17 @@
       ctx.beginPath();
       ctx.moveTo(x, y);
       ctx.strokeStyle = erasing ? MAP_CANVAS_BACKGROUND : currentColor;
-      ctx.lineWidth = erasing ? 18 : 4.5;
+      ctx.lineWidth = getBrushWidth();
       ctx.lineTo(x, y);
       ctx.stroke();
+      updateCursorPosition(event);
       if (typeof event.pointerId !== 'undefined') {
         canvas.setPointerCapture(event.pointerId);
       }
     };
 
     const continueStroke = (event) => {
+      updateCursorPosition(event);
       if (!drawing) {
         return;
       }
@@ -1148,7 +1188,7 @@
       const { x, y } = getCanvasPoint(event);
       ctx.lineTo(x, y);
       ctx.strokeStyle = erasing ? MAP_CANVAS_BACKGROUND : currentColor;
-      ctx.lineWidth = erasing ? 18 : 4.5;
+      ctx.lineWidth = getBrushWidth();
       ctx.stroke();
     };
 
@@ -1163,8 +1203,15 @@
     canvas.addEventListener('pointerdown', startStroke);
     canvas.addEventListener('pointermove', continueStroke);
     canvas.addEventListener('pointerup', endStroke);
-    canvas.addEventListener('pointerleave', endStroke);
-    canvas.addEventListener('pointercancel', endStroke);
+    canvas.addEventListener('pointerenter', updateCursorPosition);
+    canvas.addEventListener('pointerleave', () => {
+      hideCursor();
+      endStroke();
+    });
+    canvas.addEventListener('pointercancel', () => {
+      hideCursor();
+      endStroke();
+    });
 
     const persistMap = () => {
       mapDrawingDataUrl = canvas.toDataURL('image/png');
@@ -1172,8 +1219,24 @@
       close();
     };
 
+    const downloadCanvas = () => {
+      const downloadUrl = canvas.toDataURL('image/png');
+      const bookSlug = currentBook
+        ? currentBook.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+        : '';
+      const filename = bookSlug ? `${bookSlug}-map.png` : 'map-sketch.png';
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    };
+
     save.addEventListener('click', persistMap);
+    download.addEventListener('click', downloadCanvas);
     cancel.addEventListener('click', close);
+    bindDefaultEnterAction(overlay, save);
   };
 
   // Prompt the book choice up front so saves and logs can stay tied to the right title.
@@ -1256,12 +1319,7 @@
     });
 
     confirm.addEventListener('click', finalizeSelection);
-    overlay.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        finalizeSelection();
-      }
-    });
+    bindDefaultEnterAction(overlay, confirm);
   };
 
   // Restore core data in a predictable order so fields sync correctly.
@@ -1479,12 +1537,36 @@
 
   animationOverlay.addEventListener('click', closeAnimationOverlayInstantly);
 
+  // Keep modal keyboard controls consistent: Enter activates the primary action unless Shift+Enter is used.
+  const bindDefaultEnterAction = (overlay, primaryButton, options = {}) => {
+    if (!overlay || !primaryButton) {
+      return;
+    }
+    const allowTextareaSubmit = Boolean(options.allowTextareaSubmit);
+    const handler = (event) => {
+      if (event.key !== 'Enter' || event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) {
+        return;
+      }
+      const activeElement = document.activeElement;
+      if (!allowTextareaSubmit && activeElement instanceof HTMLTextAreaElement) {
+        return;
+      }
+      if (primaryButton.disabled) {
+        return;
+      }
+      event.preventDefault();
+      primaryButton.click();
+    };
+    overlay.addEventListener('keydown', handler);
+  };
+
   // Lightweight modal scaffolding to keep dialog creation tidy.
   const createModal = (title, description, options = {}) => {
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.setAttribute('aria-hidden', 'true');
     const slideFromBottom = Boolean(options.slideFromBottom);
+    const onClose = typeof options.onClose === 'function' ? options.onClose : null;
     if (slideFromBottom) {
       overlay.classList.add('modal-overlay-slide');
     }
@@ -1574,6 +1656,9 @@
         return;
       }
       hasClosed = true;
+      if (onClose) {
+        onClose();
+      }
       overlay.remove();
       if (previouslyFocused && document.body.contains(previouslyFocused)) {
         previouslyFocused.focus();
@@ -1661,6 +1746,7 @@
     actions.appendChild(skipButton);
     actions.appendChild(luckButton);
     modal.appendChild(actions);
+    bindDefaultEnterAction(overlay, skipButton);
   });
 
   const syncPlayerInputs = () => {
@@ -1754,7 +1840,7 @@
   // Allow the player to roll each stat multiple times before accepting the spread.
   const showStatRollDialog = (statSet, onComplete) => {
     const hasMagic = Boolean(statSet.magic);
-    const { modal, close } = createModal(
+    const { overlay, modal, close } = createModal(
       'Roll Your Stats',
       'Roll each stat as many times as you like, then start your adventure.',
     );
@@ -1830,10 +1916,11 @@
       close();
       onComplete(currentRolls);
     });
+    bindDefaultEnterAction(overlay, applyButton);
   };
 
   const showSpellSelectionDialog = ({ limit, spells, onConfirm, onCancel, initialSelection }) => {
-    const { modal, close } = createModal(
+    const { overlay, modal, close } = createModal(
       'Prepare Your Spells',
       'Spend your Magic to select spells for this adventure.'
     );
@@ -2007,6 +2094,7 @@
     actions.appendChild(confirmButton);
     modal.appendChild(actions);
     updateSummary();
+    bindDefaultEnterAction(overlay, confirmButton);
   };
 
   const potionOptions = [
@@ -2016,7 +2104,7 @@
   ];
 
   const showPotionDialog = (onSelect, onCancel) => {
-    const { modal, close } = createModal('Choose Your Potion', 'Pick one potion to bring on your adventure.');
+    const { overlay, modal, close } = createModal('Choose Your Potion', 'Pick one potion to bring on your adventure.');
     const grid = document.createElement('div');
     grid.className = 'grid-three';
     let selected = null;
@@ -2076,6 +2164,7 @@
     actions.appendChild(cancelButton);
     actions.appendChild(confirmButton);
     modal.appendChild(actions);
+    bindDefaultEnterAction(overlay, confirmButton);
   };
 
   // General-purpose dice roller for ad-hoc checks outside of combat or Luck.
@@ -2095,7 +2184,7 @@
   };
 
   const showGeneralRollDialog = () => {
-    const { modal, close } = createModal('Roll Dice', 'Choose dice for miscellaneous rolls.', { compact: true });
+    const { overlay, modal, close } = createModal('Roll Dice', 'Choose dice for miscellaneous rolls.', { compact: true });
 
     const field = document.createElement('div');
     field.className = 'modal-field';
@@ -2139,6 +2228,7 @@
     actions.appendChild(cancel);
     actions.appendChild(rollButton);
     modal.appendChild(actions);
+    bindDefaultEnterAction(overlay, rollButton);
   };
 
   // Offer context-aware Luck testing with clear options and enemy targeting.
@@ -2273,7 +2363,7 @@
       return;
     }
 
-    const { modal, close } = createModal(title, description, { compact: true });
+    const { overlay, modal, close } = createModal(title, description, { compact: true });
 
     const field = document.createElement('div');
     field.className = 'modal-field';
@@ -2322,6 +2412,7 @@
     actions.appendChild(cancel);
     actions.appendChild(confirm);
     modal.appendChild(actions);
+    bindDefaultEnterAction(overlay, confirm);
   });
 
   // Player interactions ----------------------------------------------------
@@ -2462,7 +2553,7 @@
   };
 
   const showPlayerModifierDialog = () => {
-    const { modal, close } = createModal(
+    const { overlay, modal, close } = createModal(
       'Adjust Player Modifiers',
       'Tweak how your hero handles incoming and outgoing damage.',
       { compact: true }
@@ -2551,6 +2642,7 @@
     actions.appendChild(apply);
     form.appendChild(actions);
     modal.appendChild(form);
+    bindDefaultEnterAction(overlay, apply);
   };
 
   const formatModifierPart = (value, emoji) => {
@@ -2791,7 +2883,7 @@
     }
 
     const modifiers = getEnemyModifiers(enemy);
-    const { modal, close } = createModal(
+    const { overlay, modal, close } = createModal(
       `Modify ${formatEnemyName(enemy)}`,
       'Adjust how this foe trades damage with you.',
       { compact: true }
@@ -2885,6 +2977,7 @@
     actions.appendChild(apply);
     form.appendChild(actions);
     modal.appendChild(form);
+    bindDefaultEnterAction(overlay, apply);
   };
 
   function addEnemy(initial = { skill: 0, stamina: 0 }, options = {}) {
@@ -3324,6 +3417,12 @@
     if (key === 'r') {
       event.preventDefault();
       showGeneralRollDialog();
+      return;
+    }
+
+    if (key === 'm') {
+      event.preventDefault();
+      showMapDialog();
       return;
     }
 
