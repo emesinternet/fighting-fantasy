@@ -34,7 +34,8 @@
     currentBook: '',
     logHistory: [],
     decisionLogHistory: [],
-    mapDrawingDataUrl: ''
+    mapDrawingDataUrl: '',
+    isMultiCombatEnabled: false
   };
 
   window.ffApp = window.ffApp || {};

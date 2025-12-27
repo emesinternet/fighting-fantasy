@@ -39,6 +39,7 @@
   let preparedSpells = state.preparedSpells;
   let preparedSpellLimit = state.preparedSpellLimit;
   let currentBook = state.currentBook || '';
+  let multiCombatEnabled = Boolean(state.isMultiCombatEnabled);
   // Keep state mutations in sync with the shared container used across dialogs.
   const syncEnemies = () => {
     state.enemies = enemies;
@@ -50,6 +51,35 @@
   };
   const syncCurrentBook = () => {
     state.currentBook = currentBook;
+  };
+  const syncMultiCombatMode = (options = {}) => {
+    const supported = multiCombatSupported();
+    if (!supported && multiCombatEnabled) {
+      // Downgrade saved or manual toggles when the current book does not allow multi-combat.
+      multiCombatEnabled = false;
+      if (options.announce) {
+        logs.logMessage('Multi-combat is unavailable for this book.', 'warning');
+      }
+    } else {
+      multiCombatEnabled = Boolean(multiCombatEnabled);
+    }
+    state.isMultiCombatEnabled = multiCombatEnabled;
+    if (multiCombatToggle) {
+      multiCombatToggle.checked = multiCombatEnabled && supported;
+      multiCombatToggle.disabled = !supported;
+      const wrapper = multiCombatToggle.closest('.toggle');
+      if (wrapper) {
+        wrapper.classList.toggle('toggle-disabled', !supported);
+        wrapper.title = supported
+          ? 'Attack multiple enemies at once.'
+          : 'Multi-combat is only available for select adventures.';
+      }
+    }
+    if (options.announce) {
+      const logLevel = multiCombatEnabled ? 'info' : 'warning';
+      const status = multiCombatEnabled ? 'enabled' : 'disabled';
+      logs.logMessage(`Multi-combat ${status}.`, logLevel);
+    }
   };
 
   const logEl = document.getElementById('log');
@@ -66,6 +96,7 @@
   const spellsPanel = document.getElementById('spellsPanel');
   const spellsTable = document.getElementById('spellsTable');
   const spellsRemaining = document.getElementById('spellsRemaining');
+  const multiCombatToggle = document.getElementById('multiCombatToggle');
 
   const inputs = {
     skill: document.getElementById('skill'),
@@ -212,6 +243,7 @@
   const mealsEnabled = () => getActiveBookRules().supportsMeals !== false;
   const activeSpells = () => Array.isArray(getActiveBookRules().spells) ? getActiveBookRules().spells : [];
   const activeStatConfigs = () => ({ ...baseStatConfigs, ...(getActiveBookRules().extraStats || {}) });
+  const multiCombatSupported = () => getActiveBookRules().supportsMultiCombat === true;
   const activeSpellLimitStat = () => getActiveBookRules().spellLimitStat;
   window.ffApp.getActiveSpells = activeSpells;
   window.ffApp.getActiveSpellLimitStat = activeSpellLimitStat;
@@ -458,7 +490,7 @@
   };
 
   const buildSavePayload = (pageNumberLabel) => ({
-    version: 6,
+    version: 7,
     savedAt: new Date().toISOString(),
     pageNumber: pageNumberLabel,
     book: currentBook || null,
@@ -470,6 +502,7 @@
     enemies: enemies.map((enemy) => ({ ...enemy })),
     log: logHistory.map((entry) => ({ ...entry })),
     decisionLog: decisionLogHistory.map((entry) => ({ ...entry })),
+    multiCombatEnabled,
     spells: {
       prepared: { ...preparedSpells },
       limit: preparedSpellLimit
@@ -641,6 +674,7 @@
     setCurrentBook(typeof data.book === 'string' ? data.book : '');
     renderCurrentBook();
     updateStatVisibility();
+    multiCombatEnabled = Boolean(data.multiCombatEnabled) && multiCombatSupported();
     applyPlayerState(data.player, data.initialStats);
     applyPlayerModifiers(data.playerModifiers || {});
     applyNotesState(data.notes);
@@ -653,6 +687,7 @@
     } else {
       spellsModule.resetSpells();
     }
+    syncMultiCombatMode({ announce: shouldLog });
     updateResourceVisibility();
     if (shouldLog) {
       const bookDetail = currentBook ? ` for ${currentBook}` : '';
@@ -1623,6 +1658,9 @@
     if (!mealsAvailable) {
       player.meals = 0;
     }
+
+    // Keep multi-combat gated to books that explicitly allow it.
+    syncMultiCombatMode();
     syncPlayerInputs();
     renderPotionStatus();
     renderSpellsPanel();
@@ -2083,6 +2121,132 @@
     resolveCopiedCreatureAttack(copyIndex, targetIndex);
   };
 
+  // Multi-combat handling -------------------------------------------------
+  const getActiveCombatants = () => enemies.filter((enemy) => !enemy.isCopy && enemy.skill > 0 && enemy.stamina > 0);
+  const promptLuckForDamageTaken = (enemyLabel) => confirm(`You took damage from ${enemyLabel}. Use Luck to reduce it?`);
+
+  async function performMultiCombatRound(targetIndex) {
+    const targetEnemy = enemies[targetIndex];
+    if (!targetEnemy) {
+      alert('Enemy not found.');
+      return;
+    }
+
+    if (targetEnemy.isCopy) {
+      alert('Use Command Attack to direct copied creatures.');
+      return;
+    }
+
+    const combatants = getActiveCombatants();
+    if (!combatants.length) {
+      alert('Add enemies with Skill and Stamina before using multi-combat.');
+      return;
+    }
+
+    if (!combatants.some((enemy) => enemy.id === targetEnemy.id)) {
+      alert('Choose an enemy with Skill and Stamina to target.');
+      return;
+    }
+
+    const playerAttack = rollDice(2) + Math.max(0, player.skill + playerModifiers.skillBonus);
+    logs.logMessage(
+      `Multi-combat engaged (${combatants.length} foes). Targeting ${formatEnemyName(targetEnemy)}. Player roll: ${playerAttack}.`,
+      'action'
+    );
+
+    let targetRemovedByLuck = false;
+    let playerFallen = false;
+    const targetId = targetEnemy.id;
+
+    for (const enemy of combatants) {
+      const index = findEnemyIndexById(enemy.id);
+      if (index < 0) {
+        continue;
+      }
+
+      const enemyLabel = formatEnemyName(enemy);
+      const monsterAttack = rollDice(2) + enemy.skill;
+      logs.logMessage(`Multi-combat vs ${enemyLabel}: Monster ${monsterAttack} vs Player ${playerAttack}.`, 'action');
+
+      if (monsterAttack === playerAttack) {
+        logs.logMessage(`${enemyLabel} matches your move. No damage traded.`, 'info');
+        continue;
+      }
+
+      const playerBeatsEnemy = playerAttack > monsterAttack;
+      if (playerBeatsEnemy) {
+        if (enemy.id !== targetId) {
+          logs.logMessage(`You outmaneuver ${enemyLabel} and avoid damage.`, 'info');
+          continue;
+        }
+
+        const damageToEnemy = calculateDamageToEnemy(enemy);
+        enemy.stamina = Math.max(0, enemy.stamina - damageToEnemy);
+        logs.logMessage(`You strike ${enemyLabel} for ${damageToEnemy} damage.`, 'success');
+        showActionVisual('playerHitEnemy');
+
+        let defeated = enemy.stamina === 0;
+        if (!defeated) {
+          const wantsLuck = await promptLuckAfterPlayerHit(enemyLabel);
+          if (wantsLuck) {
+            const luckIndex = findEnemyIndexById(enemy.id);
+            if (luckIndex !== -1) {
+              testLuck({ type: 'playerHitEnemy', index: luckIndex });
+              const stillIndex = findEnemyIndexById(enemy.id);
+              defeated = stillIndex === -1 || enemies[stillIndex]?.stamina === 0;
+            }
+          }
+        }
+
+        if (defeated) {
+          const updatedIndex = findEnemyIndexById(enemy.id);
+          const updatedEnemy = updatedIndex >= 0 ? enemies[updatedIndex] : null;
+          const defeatedLabel = updatedEnemy ? formatEnemyName(updatedEnemy) : enemyLabel;
+          logs.logMessage(`${defeatedLabel} is defeated.`, 'success');
+          showActionVisual('defeatEnemy');
+          if (updatedEnemy) {
+            removeEnemy(updatedIndex);
+          } else {
+            targetRemovedByLuck = true;
+          }
+        }
+        continue;
+      }
+
+      const damageToPlayer = calculateDamageToPlayer(enemy);
+      player.stamina = clamp(player.stamina - damageToPlayer, 0, player.maxStamina);
+      syncPlayerInputs();
+      logs.logMessage(`${enemyLabel} hits you for ${damageToPlayer} damage.`, 'danger');
+
+      await showActionVisualAndWait('playerFailAttack');
+
+      const wantsLuck = player.stamina > 0 && promptLuckForDamageTaken(enemyLabel);
+      if (wantsLuck) {
+        const luckIndex = findEnemyIndexById(enemy.id);
+        if (luckIndex !== -1) {
+          testLuck({ type: 'playerHitByEnemy', index: luckIndex });
+        }
+      }
+
+      if (player.stamina === 0) {
+        playerFallen = true;
+        logs.logMessage('You have been killed. Game Over.', 'danger');
+        showActionVisual('loseCombat');
+        break;
+      }
+    }
+
+    if (playerFallen) {
+      return;
+    }
+
+    if (targetRemovedByLuck) {
+      showActionVisual('defeatEnemy');
+    }
+
+    renderEnemies();
+  }
+
   // Combat handling -------------------------------------------------------
   async function performAttack(index) {
     const enemy = enemies[index];
@@ -2093,6 +2257,11 @@
 
     if (enemy.skill <= 0 || enemy.stamina <= 0) {
       alert('Set enemy Skill and Stamina before attacking.');
+      return;
+    }
+
+    if (multiCombatEnabled) {
+      await performMultiCombatRound(index);
       return;
     }
 
@@ -2123,10 +2292,10 @@
         }
       }
     } else {
-    const damageToPlayer = calculateDamageToPlayer(enemy);
-    player.stamina = clamp(player.stamina - damageToPlayer, 0, player.maxStamina);
-    syncPlayerInputs();
-    logs.logMessage(`${enemyLabel} hits you for ${damageToPlayer} damage.`, 'danger');
+      const damageToPlayer = calculateDamageToPlayer(enemy);
+      player.stamina = clamp(player.stamina - damageToPlayer, 0, player.maxStamina);
+      syncPlayerInputs();
+      logs.logMessage(`${enemyLabel} hits you for ${damageToPlayer} damage.`, 'danger');
 
       await showActionVisualAndWait('playerFailAttack');
 
@@ -2226,6 +2395,7 @@
           playerModifiers.damageDone = 0;
           playerModifiers.damageReceived = 0;
           playerModifiers.skillBonus = 0;
+          multiCombatEnabled = false;
 
           initialStats.skill = rolls.skill;
           initialStats.stamina = rolls.stamina;
@@ -2259,6 +2429,7 @@
           renderPotionStatus();
           renderSpellsPanel();
           updateResourceVisibility();
+          syncMultiCombatMode();
           showActionVisual('newGame');
         };
 
@@ -2400,6 +2571,12 @@
   handleLoadFile(applySaveData);
   document.addEventListener('keydown', handleGlobalHotkeys);
 
+  if (multiCombatToggle) {
+    multiCombatToggle.addEventListener('change', (event) => {
+      multiCombatEnabled = Boolean(event.target.checked);
+      syncMultiCombatMode({ announce: true });
+    });
+  }
   document.getElementById('addEnemy').addEventListener('click', () => addEnemy());
   document.getElementById('addDecision').addEventListener('click', showDecisionDialog);
   if (spellsRemaining) {
@@ -2409,6 +2586,7 @@
   renderEnemies();
   restoreLocalSave();
 
+  syncMultiCombatMode();
   updateInitialStatsDisplay();
   renderCurrentBook();
   renderPotionStatus();
