@@ -819,7 +819,7 @@ button.spell-row:hover:enabled {
 .map-text-input {
   position: absolute;
   min-width: 80px;
-  padding: 6px 8px;
+  padding: 0;
   border: 1px solid var(--panel-border);
   border-radius: var(--radius);
   background: var(--surface);

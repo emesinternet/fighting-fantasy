@@ -200,6 +200,8 @@
       textInput.style.fontSize = `${MAP_TEXT_SIZE * scale}px`;
       textInput.style.lineHeight = `${MAP_TEXT_SIZE * scale}px`;
       textInput.style.color = '#000';
+      // Zero padding so the text starts exactly at the click point and matches the canvas rendering.
+      textInput.style.padding = '0';
       textInput.classList.add('is-visible');
       textInput.focus();
     };
