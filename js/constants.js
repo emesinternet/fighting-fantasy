@@ -88,6 +88,12 @@
 
   // Book-specific rules and toggles for additional stats, potions, and spellcasting.
   const BOOK_RULES = {
+    'City of Thieves': {
+      startingNotes: {
+        gold: '30gp',
+        equipment: 'Sword'
+      }
+    },
     'Citadel of Chaos': {
       supportsPotions: false,
       supportsMeals: false,

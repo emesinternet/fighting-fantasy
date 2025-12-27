@@ -20,3 +20,6 @@
 - **T:** Test Luck.
 - **F5:** Save game.
 - **F9:** Load game.
+
+## Book-specific notes
+- **City of Thieves:** New games start with **30gp** in Gold Pieces and **Sword** in Equipment.

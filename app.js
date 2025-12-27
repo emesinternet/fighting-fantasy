@@ -87,12 +87,47 @@
     treasure: document.getElementById('treasure'),
     equipment: document.getElementById('equipment')
   };
+  const noteLabels = {
+    gold: 'Gold Pieces',
+    treasure: 'Treasures',
+    equipment: 'Equipment'
+  };
+
+  const formatNoteLabel = (key) => noteLabels[key] || key;
 
   // Keep note fields tidy with a shared reset helper for new games.
   const resetNotes = () => {
     Object.values(notes).forEach((field) => {
       field.value = '';
     });
+  };
+
+  // Books can provide starting notes such as default gold or gear to help new runs begin with the right kit.
+  const applyStartingNotes = () => {
+    const { startingNotes } = getActiveBookRules();
+    if (!startingNotes || typeof startingNotes !== 'object') {
+      return null;
+    }
+
+    const appliedNotes = [];
+
+    Object.entries(startingNotes).forEach(([key, value]) => {
+      if (!notes[key]) {
+        return;
+      }
+      const textValue = value == null ? '' : String(value);
+      notes[key].value = textValue;
+      if (textValue) {
+        appliedNotes.push(`${formatNoteLabel(key)}: ${textValue}`);
+      }
+    });
+
+    if (!appliedNotes.length) {
+      return null;
+    }
+
+    const bookLabel = currentBook || 'this adventure';
+    return `Starting notes applied for ${bookLabel}: ${appliedNotes.join('; ')}.`;
   };
 
   // Standard Fighting Fantasy combat deals 2 Stamina damage per successful hit.
@@ -2191,6 +2226,7 @@
           syncPreparedSpells();
           resetNotes();
           resetMapDrawing();
+          const startingNotesLog = applyStartingNotes();
 
           // Starting fresh should leave the adventure log empty so previous runs do not leak context.
           logHistory.length = 0;
@@ -2205,6 +2241,9 @@
           logs.renderLog();
           const bookLabel = currentBook || 'Unknown Book';
           logs.logMessage(`New game started for ${bookLabel}. Roll results applied.`, 'success');
+          if (startingNotesLog) {
+            logs.logMessage(startingNotesLog, 'info');
+          }
           renderPotionStatus();
           renderSpellsPanel();
           updateResourceVisibility();
