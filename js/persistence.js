@@ -5,6 +5,35 @@
   const { createModal, bindDefaultEnterAction } = window.ffApp.ui;
   const { logMessage } = window.ffApp.logs;
   const { byId } = window.ffApp.dom;
+  const LOCAL_SAVE_KEY = 'ff-companion-local-save';
+
+  // Store the most recent save in localStorage to make browser refreshes painless.
+  const persistLocalSave = (payload) => {
+    if (!payload) {
+      return false;
+    }
+    try {
+      localStorage.setItem(LOCAL_SAVE_KEY, JSON.stringify(payload));
+      return true;
+    } catch (error) {
+      console.warn('Unable to write local save cache', error);
+      return false;
+    }
+  };
+
+  // Load the cached save if present. This intentionally returns null on failure so callers can bail quietly.
+  const loadLocalSave = () => {
+    try {
+      const raw = localStorage.getItem(LOCAL_SAVE_KEY);
+      if (!raw) {
+        return null;
+      }
+      return JSON.parse(raw);
+    } catch (error) {
+      console.warn('Unable to read local save cache', error);
+      return null;
+    }
+  };
 
   const downloadSave = (payload, pageNumberLabel, currentBook) => {
     const json = JSON.stringify(payload, null, 2);
@@ -66,8 +95,13 @@
     saveButton.addEventListener('click', () => {
       const pageValue = pageInput.value.trim();
       const payload = buildPayload(pageValue || 'Unknown');
+      const localSaveStored = persistLocalSave(payload);
       downloadSave(payload, pageValue, currentBook);
-      logMessage(`Game saved${pageValue ? ` on Page ${pageValue}` : ''}.`, 'success');
+      const saveLabel = `Game saved${pageValue ? ` on Page ${pageValue}` : ''}.`;
+      logMessage(saveLabel, 'success');
+      if (!localSaveStored) {
+        console.warn('Game saved, but the quicksave slot could not be updated in your browser.');
+      }
       close();
     });
     bindDefaultEnterAction(overlay, saveButton);
@@ -100,6 +134,7 @@
   window.ffApp.persistence = {
     showSaveDialog,
     handleLoadFile,
-    downloadSave
+    downloadSave,
+    loadLocalSave
   };
 })();

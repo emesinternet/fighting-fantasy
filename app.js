@@ -28,7 +28,7 @@
   const { onClick, byId } = window.ffApp.dom;
   const logs = window.ffApp.logs;
   const { logMessage } = logs;
-  const { showSaveDialog, handleLoadFile } = window.ffApp.persistence;
+  const { showSaveDialog, handleLoadFile, loadLocalSave } = window.ffApp.persistence;
   const spellsModule = window.ffApp.spells;
   const state = window.ffApp.state;
   const { player, playerModifiers, initialStats, logHistory, decisionLogHistory } = state;
@@ -636,7 +636,8 @@
   };
 
   // Restore core data in a predictable order so fields sync correctly.
-  const applySaveData = (data) => {
+  const applySaveData = (data, options = {}) => {
+    const shouldLog = options.suppressLog !== true;
     setCurrentBook(typeof data.book === 'string' ? data.book : '');
     renderCurrentBook();
     updateStatVisibility();
@@ -653,8 +654,19 @@
       spellsModule.resetSpells();
     }
     updateResourceVisibility();
-    const bookDetail = currentBook ? ` for ${currentBook}` : '';
-    logs.logMessage(`Save loaded${data.pageNumber ? ` from Page ${data.pageNumber}` : ''}${bookDetail}.`, 'success');
+    if (shouldLog) {
+      const bookDetail = currentBook ? ` for ${currentBook}` : '';
+      logs.logMessage(`Save loaded${data.pageNumber ? ` from Page ${data.pageNumber}` : ''}${bookDetail}.`, 'success');
+    }
+  };
+
+  // Pull the last downloaded save from localStorage so a refresh does not wipe progress.
+  const restoreLocalSave = () => {
+    const cachedSave = loadLocalSave();
+    if (!cachedSave || typeof cachedSave !== 'object' || Array.isArray(cachedSave)) {
+      return;
+    }
+    applySaveData(cachedSave, { suppressLog: true });
   };
 
   // Prompt the player to decide on spending Luck after landing a hit.
@@ -2395,6 +2407,7 @@
   }
   bindPlayerInputs();
   renderEnemies();
+  restoreLocalSave();
 
   updateInitialStatsDisplay();
   renderCurrentBook();
@@ -2402,6 +2415,6 @@
   updateResourceVisibility();
   renderSpellsPanel();
   syncPlayerInputs();
-logs.renderLog();
-logs.renderDecisionLog();
+  logs.renderLog();
+  logs.renderDecisionLog();
 })();
