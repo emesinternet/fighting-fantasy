@@ -207,6 +207,11 @@ a {
   gap: 6px;
 }
 
+.toggle.toggle-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .section {
   margin-bottom: var(--pad12);
 }

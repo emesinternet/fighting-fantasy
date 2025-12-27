@@ -92,7 +92,8 @@
       startingNotes: {
         gold: '30gp',
         equipment: 'Sword'
-      }
+      },
+      supportsMultiCombat: true
     },
     'Citadel of Chaos': {
       supportsPotions: false,

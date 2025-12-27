@@ -53,10 +53,27 @@
     state.currentBook = currentBook;
   };
   const syncMultiCombatMode = (options = {}) => {
-    multiCombatEnabled = Boolean(multiCombatEnabled);
+    const supported = multiCombatSupported();
+    if (!supported && multiCombatEnabled) {
+      // Downgrade saved or manual toggles when the current book does not allow multi-combat.
+      multiCombatEnabled = false;
+      if (options.announce) {
+        logs.logMessage('Multi-combat is unavailable for this book.', 'warning');
+      }
+    } else {
+      multiCombatEnabled = Boolean(multiCombatEnabled);
+    }
     state.isMultiCombatEnabled = multiCombatEnabled;
     if (multiCombatToggle) {
-      multiCombatToggle.checked = multiCombatEnabled;
+      multiCombatToggle.checked = multiCombatEnabled && supported;
+      multiCombatToggle.disabled = !supported;
+      const wrapper = multiCombatToggle.closest('.toggle');
+      if (wrapper) {
+        wrapper.classList.toggle('toggle-disabled', !supported);
+        wrapper.title = supported
+          ? 'Attack multiple enemies at once.'
+          : 'Multi-combat is only available for select adventures.';
+      }
     }
     if (options.announce) {
       const logLevel = multiCombatEnabled ? 'info' : 'warning';
@@ -226,6 +243,7 @@
   const mealsEnabled = () => getActiveBookRules().supportsMeals !== false;
   const activeSpells = () => Array.isArray(getActiveBookRules().spells) ? getActiveBookRules().spells : [];
   const activeStatConfigs = () => ({ ...baseStatConfigs, ...(getActiveBookRules().extraStats || {}) });
+  const multiCombatSupported = () => getActiveBookRules().supportsMultiCombat === true;
   const activeSpellLimitStat = () => getActiveBookRules().spellLimitStat;
   window.ffApp.getActiveSpells = activeSpells;
   window.ffApp.getActiveSpellLimitStat = activeSpellLimitStat;
@@ -656,7 +674,7 @@
     setCurrentBook(typeof data.book === 'string' ? data.book : '');
     renderCurrentBook();
     updateStatVisibility();
-    multiCombatEnabled = Boolean(data.multiCombatEnabled);
+    multiCombatEnabled = Boolean(data.multiCombatEnabled) && multiCombatSupported();
     applyPlayerState(data.player, data.initialStats);
     applyPlayerModifiers(data.playerModifiers || {});
     applyNotesState(data.notes);
@@ -669,7 +687,7 @@
     } else {
       spellsModule.resetSpells();
     }
-    syncMultiCombatMode();
+    syncMultiCombatMode({ announce: shouldLog });
     updateResourceVisibility();
     if (shouldLog) {
       const bookDetail = currentBook ? ` for ${currentBook}` : '';
@@ -1640,6 +1658,9 @@
     if (!mealsAvailable) {
       player.meals = 0;
     }
+
+    // Keep multi-combat gated to books that explicitly allow it.
+    syncMultiCombatMode();
     syncPlayerInputs();
     renderPotionStatus();
     renderSpellsPanel();
