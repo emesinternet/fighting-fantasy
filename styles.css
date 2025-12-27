@@ -819,7 +819,7 @@ button.spell-row:hover:enabled {
 .map-text-input {
   position: absolute;
   min-width: 80px;
-  padding: 0;
+  padding: 2px 4px;
   border: none;
   border-left: 1px solid var(--panel-border);
   border-radius: 0;
@@ -829,7 +829,7 @@ button.spell-row:hover:enabled {
   transform: translate(0, 0);
   display: none;
   box-shadow: none;
-  width: 140%;
+  width: 200px;
 }
 
 .map-text-input.is-visible {

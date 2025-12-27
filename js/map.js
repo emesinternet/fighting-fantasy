@@ -12,6 +12,9 @@
   const MAP_ERASER_WIDTH = 24;
   const MAP_TEXT_FONT = 'bold 12px sans-serif';
   const MAP_TEXT_SIZE = 12;
+  const MAP_TEXT_PADDING_X = 4;
+  const MAP_TEXT_PADDING_Y = 2;
+  const MAP_TEXT_INPUT_WIDTH = 200;
   const TOOLS = {
     DRAW: 'draw',
     ERASE: 'erase',
@@ -194,15 +197,15 @@
       activeTextPoint = { x, y };
       activeTextColor = currentColor;
       textInput.value = '';
-      textInput.style.left = `${event.clientX - rect.left}px`;
-      textInput.style.top = `${event.clientY - rect.top}px`;
+      textInput.style.left = `${event.clientX - rect.left - MAP_TEXT_PADDING_X}px`;
+      textInput.style.top = `${event.clientY - rect.top - MAP_TEXT_PADDING_Y}px`;
       const scale = getCanvasScale();
       textInput.style.fontSize = `${MAP_TEXT_SIZE * scale}px`;
       textInput.style.lineHeight = `${MAP_TEXT_SIZE * scale}px`;
       textInput.style.color = '#000';
-      // Zero padding so the text starts exactly at the click point and matches the canvas rendering.
-      textInput.style.padding = '0';
-      textInput.style.width = '140%';
+      // Pad slightly while offsetting position so the text still starts at the click point.
+      textInput.style.padding = `${MAP_TEXT_PADDING_Y}px ${MAP_TEXT_PADDING_X}px`;
+      textInput.style.width = `${MAP_TEXT_INPUT_WIDTH}px`;
       textInput.classList.add('is-visible');
       textInput.focus();
     };
