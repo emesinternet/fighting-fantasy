@@ -4,7 +4,7 @@
 - Single-page companion sheet for tracking stats, enemies, and notes while playing Fighting Fantasy gamebooks.
 
 ## Saving and loading
-- **Save:** Prompts for a page label, then downloads a timestamped JSON snapshot that includes the active book title.
+- **Save:** Prompts for a page label, then downloads a timestamped JSON snapshot that includes the active book title. Also saved to LocalStorage.
 - **Load:** Restores stats, notes, potions, enemies, meals, prepared spells, adventure log entries, and decision log entries.
 
 ## Logs
