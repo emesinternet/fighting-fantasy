@@ -10,6 +10,12 @@
   const MAP_CANVAS_BACKGROUND = '#f3efe3';
   const MAP_BRUSH_WIDTH = 4.5;
   const MAP_ERASER_WIDTH = 24;
+  const MAP_TEXT_FONT = 'bold 12px sans-serif';
+  const TOOLS = {
+    DRAW: 'draw',
+    ERASE: 'erase',
+    TEXT: 'text'
+  };
 
   let mapModalOpen = false;
 
@@ -40,6 +46,10 @@
       return;
     }
     mapModalOpen = true;
+    const cleanupTransientUi = () => {
+      hideCursor();
+      hideTextInput();
+    };
     const { overlay, modal, close } = createModal(
       'Map Sketchpad',
       'Free draw a map or jot notes. Saving stores this canvas with your current adventure and future save files.',
@@ -47,7 +57,7 @@
         slideFromBottom: true,
         onClose: () => {
           mapModalOpen = false;
-          hideCursor();
+          cleanupTransientUi();
         }
       }
     );
@@ -66,6 +76,12 @@
     const cursor = document.createElement('div');
     cursor.className = 'map-cursor';
     canvasWrapper.appendChild(cursor);
+    const textInput = document.createElement('input');
+    textInput.type = 'text';
+    textInput.className = 'map-text-input';
+    textInput.placeholder = 'Type on map';
+    textInput.setAttribute('aria-label', 'Type on map');
+    canvasWrapper.appendChild(textInput);
     modal.appendChild(canvasWrapper);
 
     const ctx = canvas.getContext('2d');
@@ -105,20 +121,25 @@
     ];
 
     let currentColor = colorOptions[0].value;
-    let erasing = false;
+    let currentTool = TOOLS.DRAW;
+    let lastInkColor = currentColor;
+    let activeTextPoint = null;
+    let activeTextColor = currentColor;
     const swatches = [];
 
-    const getBrushWidth = () => (erasing ? MAP_ERASER_WIDTH : MAP_BRUSH_WIDTH);
+    const getBrushWidth = () => (currentTool === TOOLS.ERASE ? MAP_ERASER_WIDTH : MAP_BRUSH_WIDTH);
 
     const refreshCursorStyle = (rect) => {
       const bounds = rect || canvas.getBoundingClientRect();
       const scaleX = bounds.width / MAP_CANVAS_WIDTH;
       const scaleY = bounds.height / MAP_CANVAS_HEIGHT;
       const averageScale = (scaleX + scaleY) / 2;
-      const pixelSize = getBrushWidth() * averageScale;
+      const cursorSize = currentTool === TOOLS.TEXT ? 14 : getBrushWidth();
+      const pixelSize = cursorSize * averageScale;
       cursor.style.width = `${pixelSize}px`;
       cursor.style.height = `${pixelSize}px`;
-      cursor.style.borderColor = erasing ? MAP_CANVAS_BACKGROUND : currentColor;
+      cursor.style.borderColor = currentTool === TOOLS.ERASE ? MAP_CANVAS_BACKGROUND : currentColor;
+      cursor.classList.toggle('is-text', currentTool === TOOLS.TEXT);
     };
 
     const hideCursor = () => {
@@ -133,13 +154,71 @@
       cursor.classList.add('is-visible');
     };
 
-    const setActiveSwatch = (swatch, colorValue, isEraser = false) => {
+    // Keep a lightweight overlay for text so typing feels natural before committing to pixels.
+    const hideTextInput = () => {
+      activeTextPoint = null;
+      textInput.value = '';
+      textInput.classList.remove('is-visible');
+    };
+
+    const commitActiveText = () => {
+      if (!activeTextPoint) {
+        hideTextInput();
+        return;
+      }
+      const text = textInput.value || '';
+      if (text.trim()) {
+        ctx.save();
+        ctx.font = MAP_TEXT_FONT;
+        ctx.fillStyle = activeTextColor;
+        ctx.textBaseline = 'top';
+        ctx.fillText(text, activeTextPoint.x, activeTextPoint.y);
+        ctx.restore();
+      }
+      hideTextInput();
+    };
+
+    const startTypingAtPoint = (event) => {
+      commitActiveText();
+      const rect = canvas.getBoundingClientRect();
+      const { x, y } = getCanvasPoint(event);
+      activeTextPoint = { x, y };
+      activeTextColor = currentColor;
+      textInput.value = '';
+      textInput.style.left = `${event.clientX - rect.left}px`;
+      textInput.style.top = `${event.clientY - rect.top}px`;
+      textInput.classList.add('is-visible');
+      textInput.focus();
+    };
+
+    // Allow quick commits without swapping tools.
+    textInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        commitActiveText();
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        hideTextInput();
+      }
+    });
+
+    const setActiveSwatch = (swatch, colorValue, tool = TOOLS.DRAW) => {
+      if (currentTool === TOOLS.TEXT) {
+        commitActiveText();
+      }
       swatches.forEach((item) => item.classList.remove('is-active'));
       if (swatch) {
         swatch.classList.add('is-active');
       }
-      currentColor = colorValue;
-      erasing = isEraser;
+      if (tool === TOOLS.DRAW) {
+        currentColor = colorValue || lastInkColor;
+        lastInkColor = currentColor;
+      } else if (tool === TOOLS.TEXT) {
+        currentColor = lastInkColor;
+      } else {
+        currentColor = MAP_CANVAS_BACKGROUND;
+      }
+      currentTool = tool;
       refreshCursorStyle();
     };
 
@@ -156,7 +235,7 @@
       swatch.style.background = option.value;
       swatch.title = `${option.label} ink`;
       swatch.setAttribute('aria-label', `${option.label} ink`);
-      swatch.addEventListener('click', () => setActiveSwatch(swatch, option.value, false));
+      swatch.addEventListener('click', () => setActiveSwatch(swatch, option.value, TOOLS.DRAW));
       if (index === 0) {
         setActiveSwatch(swatch, option.value);
       }
@@ -164,13 +243,23 @@
       palette.appendChild(swatch);
     });
 
+    const textSwatch = document.createElement('button');
+    textSwatch.type = 'button';
+    textSwatch.className = 'map-swatch map-swatch-text';
+    textSwatch.title = 'Type on map';
+    textSwatch.setAttribute('aria-label', 'Type on map');
+    textSwatch.textContent = 'T';
+    textSwatch.addEventListener('click', () => setActiveSwatch(textSwatch, lastInkColor, TOOLS.TEXT));
+    palette.appendChild(textSwatch);
+    swatches.push(textSwatch);
+
     const eraser = document.createElement('button');
     eraser.type = 'button';
     eraser.className = 'map-swatch';
     eraser.title = 'Erase';
     eraser.setAttribute('aria-label', 'Erase');
     eraser.style.background = MAP_CANVAS_BACKGROUND;
-    eraser.addEventListener('click', () => setActiveSwatch(eraser, MAP_CANVAS_BACKGROUND, true));
+    eraser.addEventListener('click', () => setActiveSwatch(eraser, MAP_CANVAS_BACKGROUND, TOOLS.ERASE));
     palette.appendChild(eraser);
     swatches.push(eraser);
 
@@ -205,11 +294,15 @@
 
     const startStroke = (event) => {
       event.preventDefault();
+      if (currentTool === TOOLS.TEXT) {
+        startTypingAtPoint(event);
+        return;
+      }
       drawing = true;
       const { x, y } = getCanvasPoint(event);
       ctx.beginPath();
       ctx.moveTo(x, y);
-      ctx.strokeStyle = erasing ? MAP_CANVAS_BACKGROUND : currentColor;
+      ctx.strokeStyle = currentTool === TOOLS.ERASE ? MAP_CANVAS_BACKGROUND : currentColor;
       ctx.lineWidth = getBrushWidth();
       ctx.lineTo(x, y);
       ctx.stroke();
@@ -227,7 +320,7 @@
       event.preventDefault();
       const { x, y } = getCanvasPoint(event);
       ctx.lineTo(x, y);
-      ctx.strokeStyle = erasing ? MAP_CANVAS_BACKGROUND : currentColor;
+      ctx.strokeStyle = currentTool === TOOLS.ERASE ? MAP_CANVAS_BACKGROUND : currentColor;
       ctx.lineWidth = getBrushWidth();
       ctx.stroke();
     };
@@ -254,6 +347,7 @@
     });
 
     const persistMap = () => {
+      commitActiveText();
       setMapDrawing(canvas.toDataURL('image/png'));
       if (logMessage) {
         logMessage('Map saved to this adventure and future save files.', 'info');

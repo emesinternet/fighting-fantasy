@@ -780,12 +780,21 @@ button.spell-row:hover:enabled {
 }
 
 .map-swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 32px;
   height: 32px;
   border-radius: 50%;
   border: 2px solid var(--panel-border);
   cursor: pointer;
   transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.map-swatch-text {
+  background: var(--surface-raise);
+  color: var(--text);
+  font-weight: 800;
 }
 
 .map-swatch:hover {
@@ -796,11 +805,33 @@ button.spell-row:hover:enabled {
   border-color: var(--accent-strong);
 }
 
+.map-cursor.is-text {
+  border-style: dashed;
+}
+
 .map-actions {
   display: flex;
   align-items: center;
   gap: var(--gap8);
   margin-left: auto;
+}
+
+.map-text-input {
+  position: absolute;
+  min-width: 80px;
+  padding: 6px 8px;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font: bold 12px sans-serif;
+  transform: translate(-50%, -50%);
+  display: none;
+  box-shadow: var(--shadow);
+}
+
+.map-text-input.is-visible {
+  display: block;
 }
 
 .stat-value {
