@@ -820,14 +820,16 @@ button.spell-row:hover:enabled {
   position: absolute;
   min-width: 80px;
   padding: 0;
-  border: 1px solid var(--panel-border);
-  border-radius: var(--radius);
+  border: none;
+  border-left: 1px solid var(--panel-border);
+  border-radius: 0;
   background: var(--surface);
   color: #000;
   font: bold 12px sans-serif;
   transform: translate(0, 0);
   display: none;
   box-shadow: var(--shadow);
+  width: 200%;
 }
 
 .map-text-input.is-visible {

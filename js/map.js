@@ -202,6 +202,7 @@
       textInput.style.color = '#000';
       // Zero padding so the text starts exactly at the click point and matches the canvas rendering.
       textInput.style.padding = '0';
+      textInput.style.width = '200%';
       textInput.classList.add('is-visible');
       textInput.focus();
     };
