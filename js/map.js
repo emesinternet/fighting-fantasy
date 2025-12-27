@@ -11,6 +11,7 @@
   const MAP_BRUSH_WIDTH = 4.5;
   const MAP_ERASER_WIDTH = 24;
   const MAP_TEXT_FONT = 'bold 12px sans-serif';
+  const MAP_TEXT_SIZE = 12;
   const TOOLS = {
     DRAW: 'draw',
     ERASE: 'erase',
@@ -129,6 +130,13 @@
 
     const getBrushWidth = () => (currentTool === TOOLS.ERASE ? MAP_ERASER_WIDTH : MAP_BRUSH_WIDTH);
 
+    const getCanvasScale = () => {
+      const bounds = canvas.getBoundingClientRect();
+      const scaleX = bounds.width / MAP_CANVAS_WIDTH;
+      const scaleY = bounds.height / MAP_CANVAS_HEIGHT;
+      return (scaleX + scaleY) / 2;
+    };
+
     const refreshCursorStyle = (rect) => {
       const bounds = rect || canvas.getBoundingClientRect();
       const scaleX = bounds.width / MAP_CANVAS_WIDTH;
@@ -138,7 +146,8 @@
       const pixelSize = cursorSize * averageScale;
       cursor.style.width = `${pixelSize}px`;
       cursor.style.height = `${pixelSize}px`;
-      cursor.style.borderColor = currentTool === TOOLS.ERASE ? MAP_CANVAS_BACKGROUND : currentColor;
+      const cursorColor = currentTool === TOOLS.TEXT ? '#000' : (currentTool === TOOLS.ERASE ? MAP_CANVAS_BACKGROUND : currentColor);
+      cursor.style.borderColor = cursorColor;
       cursor.classList.toggle('is-text', currentTool === TOOLS.TEXT);
     };
 
@@ -187,6 +196,10 @@
       textInput.value = '';
       textInput.style.left = `${event.clientX - rect.left}px`;
       textInput.style.top = `${event.clientY - rect.top}px`;
+      const scale = getCanvasScale();
+      textInput.style.fontSize = `${MAP_TEXT_SIZE * scale}px`;
+      textInput.style.lineHeight = `${MAP_TEXT_SIZE * scale}px`;
+      textInput.style.color = '#000';
       textInput.classList.add('is-visible');
       textInput.focus();
     };
@@ -200,6 +213,16 @@
         event.preventDefault();
         hideTextInput();
       }
+    });
+
+    // While text is active, Enter commits the text instead of saving the map.
+    overlay.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' || !textInput.classList.contains('is-visible')) {
+        return;
+      }
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      commitActiveText();
     });
 
     const setActiveSwatch = (swatch, colorValue, tool = TOOLS.DRAW) => {
