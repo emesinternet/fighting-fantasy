@@ -89,7 +89,14 @@
       <section class="column" id="monsters">
         <div class="section-header">
           <h2>Monster Encounters</h2>
-          <button id="addEnemy" class="btn btn-positive">Add Enemy</button>
+          <div class="header-actions">
+            <label class="toggle" for="multiCombatToggle">
+              <input type="checkbox" id="multiCombatToggle" aria-label="Enable multi-combat">
+              <span class="toggle-slider" aria-hidden="true"></span>
+              <span class="toggle-label">Multi-combat</span>
+            </label>
+            <button id="addEnemy" class="btn btn-positive">Add Enemy</button>
+          </div>
         </div>
         <div id="monsterList" class="monster-list"></div>
         <div class="escape-footer">
