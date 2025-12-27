@@ -825,7 +825,7 @@ button.spell-row:hover:enabled {
   border-radius: 0;
   background: var(--surface);
   color: #000;
-  font: bold 12px sans-serif;
+  font: bold 16px sans-serif;
   transform: translate(0, 0);
   display: none;
   box-shadow: none;

@@ -10,8 +10,8 @@
   const MAP_CANVAS_BACKGROUND = '#f3efe3';
   const MAP_BRUSH_WIDTH = 4.5;
   const MAP_ERASER_WIDTH = 24;
-  const MAP_TEXT_FONT = 'bold 12px sans-serif';
-  const MAP_TEXT_SIZE = 12;
+  const MAP_TEXT_FONT = 'bold 16px sans-serif';
+  const MAP_TEXT_SIZE = 16;
   const MAP_TEXT_PADDING_X = 4;
   const MAP_TEXT_PADDING_Y = 2;
   const MAP_TEXT_INPUT_WIDTH = 200;
