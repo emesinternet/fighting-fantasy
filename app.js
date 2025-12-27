@@ -440,6 +440,9 @@
       limit: preparedSpellLimit
     }
   });
+
+  // Keep save wiring centralized so both the button and hotkey share the same payload builder.
+  const openSaveDialog = () => showSaveDialog(buildSavePayload, currentBook);
   const showDecisionDialog = () => {
     const { overlay, modal, close } = createModal(
       'Add Decision',
@@ -2309,7 +2312,7 @@
 
     if (key === 'f5') {
       event.preventDefault();
-      showSaveDialog();
+      openSaveDialog();
       return;
     }
 
@@ -2335,7 +2338,7 @@
   document.getElementById('testLuck').addEventListener('click', showLuckDialog);
   document.getElementById('playerModifier').addEventListener('click', showPlayerModifierDialog);
   document.getElementById('generalRoll').addEventListener('click', showGeneralRollDialog);
-  document.getElementById('saveGame').addEventListener('click', showSaveDialog);
+  document.getElementById('saveGame').addEventListener('click', openSaveDialog);
   document.getElementById('loadGame').addEventListener('click', () => loadFileInput.click());
   document.getElementById('openMap').addEventListener('click', () => {
     showMapDialog({ currentBook, logMessage });
