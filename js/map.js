@@ -146,7 +146,7 @@
       const pixelSize = cursorSize * averageScale;
       cursor.style.width = `${pixelSize}px`;
       cursor.style.height = `${pixelSize}px`;
-      const cursorColor = currentTool === TOOLS.TEXT ? '#000' : (currentTool === TOOLS.ERASE ? MAP_CANVAS_BACKGROUND : currentColor);
+      const cursorColor = currentTool === TOOLS.ERASE ? '#000' : (currentTool === TOOLS.TEXT ? '#000' : currentColor);
       cursor.style.borderColor = cursorColor;
       cursor.classList.toggle('is-text', currentTool === TOOLS.TEXT);
     };
@@ -208,11 +208,18 @@
     textInput.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
         event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
         commitActiveText();
       } else if (event.key === 'Escape') {
         event.preventDefault();
         hideTextInput();
       }
+    });
+
+    // Leaving the field by tabbing or clicking elsewhere should bake the text into the canvas.
+    textInput.addEventListener('blur', () => {
+      commitActiveText();
     });
 
     // While text is active, Enter commits the text instead of saving the map.
