@@ -828,8 +828,8 @@ button.spell-row:hover:enabled {
   font: bold 12px sans-serif;
   transform: translate(0, 0);
   display: none;
-  box-shadow: var(--shadow);
-  width: 200%;
+  box-shadow: none;
+  width: 140%;
 }
 
 .map-text-input.is-visible {
