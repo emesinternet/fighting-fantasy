@@ -95,6 +95,11 @@
       },
       supportsMultiCombat: true
     },
+    'Forest of Doom': {
+      startingNotes: {
+        gold: '30gp'
+      }
+    },
     'Citadel of Chaos': {
       supportsPotions: false,
       supportsMeals: false,
